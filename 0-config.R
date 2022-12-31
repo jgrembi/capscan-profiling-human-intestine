@@ -10,6 +10,7 @@
 # load libraries
 library(here)
 library(ggtext)
+library(ggh4x)
 library(ggbeeswarm)
 library(corrplot)
 library(vegan)
@@ -75,8 +76,8 @@ sample_data = paste0(data_dir, "sample_data.RDS")
 clean_phyloseq_object = paste0(data_dir, "phyloseq_alphaDiv.rds")
 # clean_phyloseq_object_transformed = paste0(clean_data_dir, "phyloseq_alphaDiv_transformed.rds")
 # clean_phyloseq_object_transformed_filtered = paste0(clean_data_dir, "phyloseq_transformed_filtered.rds")
-phyloseq_bilesalt = paste0(clean_data_dir, "phyloseq_bilesalt.rds")
-phyloseq_bilesalt_relabs = paste0(clean_data_dir, "phyloseq_bilesalt_relabs.rds")
+phyloseq_bilesalt = paste0(data_dir, "phyloseq_bilesalt.rds")
+# phyloseq_bilesalt_relabs = paste0(data_dir, "phyloseq_bilesalt_relabs.rds")
 
 #--------------------------------------------
 # Set white theme for all figures

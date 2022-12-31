@@ -16,33 +16,104 @@ source(paste0(here::here(), "/0-config.R"))
 # Figure 1A - capsule diagram and indended opening locations 
 #######################################
 # Read in .jpg of GI & capsules overview
-a_img <- image_read(paste0(fig_dir, "gi_overview.png"))
+a_img <- image_read(paste0(fig_dir, "Fig1a_subpanel_gi_overview.png"))
 a_ratio <- image_info(a_img)$height/image_info(a_img)$width
 (a <- ggplot() + 
     coord_fixed(a_ratio) + 
     background_image(a_img)) + 
   theme(plot.margin = margin(t = fig_padding, l = fig_padding, r = fig_padding, b = fig_padding/3, unit = "pt"))
-# (a <- ggdraw() + 
-#     draw_image(paste0(fig_dir, "gi_overview.jpg"), height = 1.5, width = 1,) + #valign = -1.15 
-#     theme(plot.margin = unit(c(5,5,5,5), "points")))
 
 #######################################
 # Figure 1B - study design
 #######################################
 # Read in .jpg of study overview
-b_img <- image_read(paste0(fig_dir, "study_overview.png"))
+b_img <- image_read(paste0(fig_dir, "Fig1b_subpanel_study_overview.png"))
 b_ratio <- image_info(b_img)$height/image_info(b_img)$width
 (b <- ggplot() + 
     coord_fixed(b_ratio) + 
     background_image(b_img)) + 
   theme(plot.margin = margin(t = fig_padding, l = fig_padding, r = fig_padding, b = fig_padding/3, unit = "pt"))
 
-# (b <- ggdraw() + 
-#     draw_image(paste0(fig_dir, "study_overview.jpg"), height = 1.5, width = 1) + #valign = -2 
-#     theme(plot.margin = unit(c(5,5,5,5), "points")))
 
 #######################################
-# Figure 1C - pH across capsule types
+# Figure 1C - barplots showing relative abundance by ASV family
+#######################################
+
+ps.bs.raw <- readRDS(phyloseq_bilesalt) %>% subset_samples(., drop_16s == F)
+ps.bs <- subset_samples(ps.bs.raw, !drop_16s & Set %in% c("2", "3", "4", "5", "Stool")) %>%
+  filter_taxa(., function(x) sum(x > 3) > (0.05*length(x)), TRUE) %>% # Gets rid of all taxa not found at a count of 3 in at least 5% of samples (that's 14 samples)
+  transform_sample_counts(.,function(x) x/sum(x))
+
+
+# Generate dataframe to plot                            
+df<-psmelt(ps.bs) %>%
+  mutate(title=paste0('Subj ',Subject,',\nSet ',Set)) %>%  
+  mutate(Type2 = ifelse(Type == 'Capsule 1','D1',
+                        ifelse(Type == 'Capsule 2','D2',
+                               ifelse(Type == 'Capsule 3',' D3',
+                                      ifelse(Type == 'Capsule 4','D4', 'S'))))) %>%
+  mutate(name = paste0(Main,'',Type2)) %>%
+  mutate(Genus = factor(ifelse(is.na(Genus), ifelse(!is.na(Family), paste0("(Unclassified ", Family, ")"), "(Unclassified family)"), Genus))) %>%
+  mutate(Family = factor(ifelse(is.na(Family), ifelse(!is.na(Phylum), paste0("(Unclassified ", Phylum, ")"), "(Unclassified phylum)"), Family)))
+
+# Order dataframe
+df.order <- df %>% 
+  arrange(Type)
+
+# Naming samples as "Main 2" to include the location and type and set as well
+df <- df %>% 
+  mutate(Main = factor(Main, levels=unique(df.order$Main))) %>%
+  mutate(Location = ifelse(Type %in% 'Stool','Stool','Devices')) %>%
+  mutate(Main2 = ifelse(Location %in% 'Devices', paste0(Type2, ', S',Set), Main))
+
+# Generating a major color for each phylum, and then using colorRampPalette to generate gradients of that color to plot the families                            
+
+d1 <- df %>% filter(Phylum %in% 'Actinobacteria') #Yellow
+d1.cols<-colorRampPalette(c('#645002','#FEF2C3'))(length(unique(d1$Family)))
+
+d2 <- df %>% filter(Phylum %in% 'Bacteroidetes') #Purple
+d2.cols<-colorRampPalette(c('#371B35','#EBD6E9'))(length(unique(d2$Family)))
+
+d3 <- df %>% filter(Phylum %in% 'Firmicutes') #Blue
+d3.cols<-colorRampPalette(c('#052C39','#D9F3FC'))(length(unique(d3$Family)))
+
+d4 <- df %>% filter(Phylum %in% 'Proteobacteria') #Red
+d4.cols<-colorRampPalette(c('#771B18','#F1BDBB'))(length(unique(d4$Family)))
+
+d5 <- df %>% filter(Phylum %in% 'Verrucomicrobia') #Pink
+d5.cols<-colorRampPalette(c('#280004','#FFC2C8'))(length(unique(d5$Family)))
+
+# Ordering the color data frame
+main.cols<-data.frame(c(d1.cols,d2.cols,d3.cols,d4.cols,d5.cols))
+colnames(main.cols)<-'colors'
+
+fam.order <- df %>% arrange(Phylum, Family) %>% select(Family) %>%
+  unique() %>% cbind(main.cols) 
+
+# This sums each sample by family and then merges this dataframe with the color dataframe                          
+df2plot <- df %>%
+  group_by(Main, Family, Location, Subject) %>%
+  dplyr::summarise(Abundance = sum(Abundance)) %>%
+  mutate(Family = factor(Family, levels=fam.order$Family))
+
+# Plot
+(c <- ggplot(df2plot, aes(x=Main, y=Abundance, fill=Family)) +
+  geom_bar(stat='identity', width=1) +
+  scale_fill_manual(values=fam.order$colors)+
+  facet_grid2(Location~Subject, scales='free_x', independent = 'x', switch = 'y') +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), 
+        legend.position = "none",
+        strip.placement = "outside") + 
+  labs(y = "Relative abundance", x = "")) 
+  
+
+
+ggsave(paste0(fig_dir, 'Fig1c_subpanel_asv_family_level_barplots.pdf'), plot = c, width=12, height=5)
+
+
+#######################################
+# Figure 1D - pH across capsule types
 #######################################
 
 ## Filter out Capsules not in Sets 2-5, and any sample without adequate 16s reads
@@ -62,7 +133,8 @@ table(df_samples$Type)
 df_cap_samples <- df_samples %>%
   data.frame %>%
   filter(location == "Capsule") %>%
-  mutate(Type = droplevels(Type))
+  mutate(Type = droplevels(Type),
+         Type = gsub("Capsule", "Device", Type))
 
 summary(df_cap_samples$pH)
 
@@ -71,7 +143,7 @@ stat_test <- df_cap_samples %>%
   add_significance() %>%
   add_xy_position(x = "Type")
 
-(c <- ggplot(df_cap_samples, 
+(d <- ggplot(df_cap_samples, 
              aes(x = Type, y = pH)) + 
     geom_boxplot(aes(fill = Type), outlier.shape = NA) +
     # geom_violin(alpha = 0.9) +
@@ -89,10 +161,10 @@ stat_test <- df_cap_samples %>%
           axis.title = element_text(size = 16),
           plot.margin = margin(t = fig_padding, l = fig_padding, r = fig_padding, b = fig_padding, unit = "pt")))
 
-ggsave(filename = paste0(fig_dir, "capsule_pH.pdf"), plot = c, height = 6, width = 6)
+ggsave(filename = paste0(fig_dir, "Fig1d_subpanel_capsule_pH.pdf"), plot = d, height = 6, width = 6)
 
 #######################################
-# Figure 1D - Ordination of all capsule, stool, and saliva samples
+# Figure 1E - Ordination of all capsule, stool, and saliva samples
 #######################################
 (ps <- readRDS(clean_phyloseq_object) %>%
    subset_samples(!drop_16s & Set %in% c("2", "3", "4", "5", "Stool", "Saliva")) %>%
@@ -122,17 +194,18 @@ summary(ps@sam_data$reads_16s)
 pcoa_canberra <- ordinate(ps,  method = "MDS", distance = "canberra")
 
 var_exp <- get_evals(pcoa_canberra)$variance_exp
-scores <- get_scores(pcoa_canberra, sample_data(ps))
+scores <- get_scores(pcoa_canberra, sample_data(ps)) %>%
+  mutate(subj_id = ifelse(Subject == 15, "15", ifelse(Subject == 10, "10", "All other")),
+         Type = factor(gsub("Capsule", "Device", Type), levels = c("Saliva", "Device 1", "Device 2", "Device 3", "Device 4", "Stool")))
 
-(d <- ggplot(scores %>%
-               mutate(subj_id = ifelse(Subject == 15, "15", ifelse(Subject == 10, "10", "All other"))),  
+(e <- ggplot(scores,  
              aes(x = -PC1, y = PC2, color = Type, shape = subj_id)) +
     geom_point(size = 3, alpha = 0.8) + 
     ## This code changes the color of the legend text so that it will mirror the points
     scale_color_manual(labels = paste("<span style='color:",
                                      c("black", CapTypeAndStoolColors),
                                      "'>",
-                                     levels(ps@sam_data$Type),
+                                     levels(scores$Type),
                                      "</span>"),
                       values = c("black", CapTypeAndStoolColors), 
                       guide = "none") +    
@@ -145,19 +218,27 @@ scores <- get_scores(pcoa_canberra, sample_data(ps))
          color = "Sample type") + 
     theme(axis.text = element_text(size = 14),
           axis.title = element_text(size = 14),
-          legend.position = "top",
-          legend.box = "vertical",
+          axis.title.y = element_textbox_simple(
+            hjust = 0,
+            orientation = "left-rotated",
+            minwidth = unit(1, "in"),
+            maxwidth = unit(2, "in"),
+            padding = margin(4, 4, 2, 4),
+            margin = margin(0, 0, 2, 0)),
+          legend.position = "bottom",
+          legend.box = "horizontal",
           legend.margin = margin(),
           legend.spacing.x = unit(1.0, 'pt'),
           ## This line is needed with the above (lines 151-157) to change the color of the legend text to match the points
           legend.text=element_markdown(size=14),
-          legend.title = element_text(size = 14, vjust = 0.66),
+          legend.title = element_text(size = 14, vjust = 0.97),
           plot.margin = margin(t = fig_padding/5, l = fig_padding/5, r = fig_padding/5, b = fig_padding/5, unit = "pt")) + 
-    guides(color = guide_legend(nrow = 1,
+    guides(color = guide_legend(nrow = 6,
                                 override.aes = list(shape = NA),
-                                keywidth = unit(0, "pt")))) ## This line removes the point on the legend for the color
+                                keywidth = unit(0, "pt")),
+           shape = guide_legend(nrow = 3))) ## This line removes the point on the legend for the color
 
-ggsave(filename = paste0(fig_dir, "pcoa_canberra.pdf"), plot = d, height = 6, width = 8)
+ggsave(filename = paste0(fig_dir, "Fig1e_subpanel_pcoa_canberra.pdf"), plot = e, height = 6, width = 8)
 
 
 ## PERMANOVA to determine if saliva is significantly different
@@ -166,7 +247,7 @@ adonis(dist~location, data = ps@sam_data %>% data.frame)
 
 
 #######################################
-# Figure 1E - Differential abundance analysis
+# Figure 1F - Differential abundance analysis
 #######################################
 ## First look for unique ASVs and their relative abundance and get basic statistics
 (ps_ra <- readRDS(clean_phyloseq_object) %>%
@@ -340,7 +421,7 @@ limmaRes_sig <- limmaRes %>%
   mutate(OrgName = paste0(ifelse(is.na(Genus), Family, Genus), " ", Species, " (", SeqName, ")"),
          col = factor(ifelse(logFC > 0.75, "Increased in capsule", "Increased in stool")))
 
-(diff_abnd <- ggplot(limmaRes_sig, 
+(f <- ggplot(limmaRes_sig, 
        aes(y = fct_reorder(OrgName, logFC, max), x = logFC, fill = col)) + 
   geom_col() + 
   labs(x = expression('log'[2]*' fold change'), y = "", fill = "") + 
@@ -361,104 +442,22 @@ limmaRes_sig <- limmaRes %>%
         plot.margin = margin(r = -0.8, unit = "pt")))
 
 
-### This looks for the prevalence of all differentially abundant ASVs in both capsule and stool samples
-asv_labels = limmaRes_sig %>%
-  ungroup() %>%
-  arrange((logFC)) %>%
-  pull(OrgName)
-  # mutate(OrgName = fct_reorder(OrgName, logFC, max))
-prev.cap <- data.frame(df_ps) %>%
-  filter(ASV %in% limmaRes_sig$ASV, location %in% c("Capsule","Stool")) %>%
-  mutate(location = factor(location, levels = c("Capsule", "Stool"))) %>%
-  group_by(ASV, location) %>%
-  summarise(n = n(), 
-            n_samp = sum(Abundance > 0),
-            prev_pct = n_samp/n) %>%
-  select(location, ASV, prev_pct) %>%
-  filter(location %in% 'Capsule')
-
-prev.stool <- data.frame(df_ps) %>%
-  filter(ASV %in% limmaRes_sig$ASV, location %in% c("Capsule","Stool")) %>%
-  mutate(location = factor(location, levels = c("Capsule", "Stool"))) %>%
-  group_by(ASV, location) %>%
-  summarise(n = n(), 
-            n_samp = sum(Abundance > 0),
-            prev_pct = n_samp/n) %>%
-  select(location, ASV, prev_pct) %>%
-  filter(location %in% 'Stool')
-
-prev<-rbind(prev.cap,prev.stool) %>%
-  left_join(.,limmaRes_sig,by='ASV') %>%
-  mutate(location = factor(location, levels = c("Capsule", "Stool"), labels = c("C", "S")),
-         OrgName = factor(OrgName, levels = asv_labels))
-
-(prev_hm <- ggplot(prev, aes(x = location, y = OrgName, fill = log10(prev_pct*100))) +
-  geom_tile(color = "white") +
-  labs(x = "", y = "", fill = "Prev (%)") +
-  coord_equal() + 
-  theme(legend.position='right',
-        legend.margin = margin(t = -2, b = -2, unit = "pt"),
-        axis.text.y = element_blank(),
-        plot.margin=margin(l=0, r = -1, unit="pt")) +
-  scale_fill_gradient(low = "light blue", high = "dark blue", 
-                      breaks = c(1, 1.25, 1.5, 1.75, 2), 
-                      labels = c(10, 18, 32, 56, 100)))
-## Comparing mean of log10 abundance
-ggplot(df_ps %>%
-         filter(ASV %in% limmaRes_sig$ASV, location %in% c("Capsule", "Stool")), 
-       aes(x = log10(Abundance*100))) + 
-  geom_histogram(bins = 25) + 
-  facet_wrap(ASV~location, scales= "free")
-
-
-#relative abundance of ASVs
-rel_abnd_heatmap <- df_ps %>%
-  filter(ASV %in% limmaRes_sig$ASV, location %in% c("Capsule", "Stool")) %>%
-  group_by(ASV, location) %>%
-  summarise(mean_relAbnd = mean(Abundance),
-            median_relAbnd = median(Abundance)) %>%
-  ungroup() %>%
-  left_join(limmaRes_sig %>%
-              select(ASV, OrgName)) %>%
-  mutate(location = factor(location, levels = c("Capsule", "Stool"), labels = c("C", "S")),
-         OrgName = factor(OrgName, levels = asv_labels))
-
-(relabnd_hm <- ggplot(rel_abnd_heatmap, aes(x = location, y = OrgName, fill = log10(mean_relAbnd*100))) +
-  geom_tile(color = "white") +
-  labs(x = "", y = "", fill = str_wrap('Relative abundance (%)', width = 10)) +
-  coord_equal() + 
-  theme(legend.position='right',
-        legend.margin = margin(t = -2, b = -2, unit = "pt"),
-        axis.text.y = element_blank(),
-        plot.margin=margin(l=-1, r = 0, unit="pt")) +
-  scale_fill_gradient(low = "yellow", high = "red"))
-
-(prev_abnd_hm <- plot_grid(prev_hm + theme(legend.position = "none", 
-                                            plot.margin = margin(l = -1, r = -1, unit = "pt")), 
-                            relabnd_hm + theme(legend.position = "none", 
-                                               plot.margin = margin(l = -1, r = -1, unit = "pt")), nrow = 1, ncol = 2, rel_widths = c(1,1), align = "vh", axis = "l"))
-(legend_plot <- plot_grid(get_legend(prev_hm), 
-                     get_legend(relabnd_hm), ncol = 1, axis = "b", align = "v"))
-(heatmaps <- plot_grid(prev_abnd_hm, legend_plot, nrow = 1, axis = "l"))
-(e <- plot_grid(diff_abnd, 
-                heatmaps,
-          nrow = 1, rel_widths = c(7, 2), axis = "t"))
-
-ggsave(paste0(fig_dir, "diff_abundance.pdf"), height = 5.8)
+ggsave(paste0(fig_dir, "Fig1f_subpanel_diff_abundance.pdf"), plot = f, height = 5.8)
 
 
 
 ### Plot final figure for manuscript
  
-lay <- rbind(c(1,2),c(1,3), c(4,4),c(4,4),c(5,5), c(5,5))
+lay <- rbind(c(1,1,2,2,3,3), c(4,4,4,4,4,4), c(4,4,4,4,4,4), c(5,5,5,6,6,6), c(5,5,5,6,6,6))
 
-margin <- theme(plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"))
+margin <- theme(plot.margin = unit(c(0.5,0.5,0.5,0.5,0.5,0.5), "cm"))
 
-g<-list(a,b,c,d,e)
-p.final<-arrangeGrob(grobs=lapply(g,"+",margin), layout_matrix = lay)
+g <- list(a,b,d,c,e,f)
+p.final <- arrangeGrob(grobs=lapply(g,"+",margin), layout_matrix = lay)
 
-p <- as_ggplot(p.final) + # transform to a ggplot
-  draw_plot_label(label = c("A", "B", "C", "D", "E"), size = 18,x = c(0, 0.5, 0.5, 0, 0), y = c(1,1,0.75,0.75,0.25))
-ggsave(filename = paste0(fig_dir, "Figure_1.pdf"),p, width = 10, height = 14)
+(p <- as_ggplot(p.final) + # transform to a ggplot
+  draw_plot_label(label = c("A", "B", "D", "C", "E", "F"), size = 18, x = c(0, 0.33, 0.66, 0, 0, 0.5), y = c(1,1,1,0.8,0.4,0.4)))
+
+ggsave(filename = paste0(fig_dir, "Figure_1.pdf"), p, width = 16, height = 20)
  
 
