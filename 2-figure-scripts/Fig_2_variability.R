@@ -31,11 +31,14 @@ df_samples_min <- df_samples %>%
 #######################################
 method = "canberra"
 dist <- phyloseq::distance(ps, method = method, type = "samples") #binary = T
+
+saveRDS(dist, paste0(data_dir, "canberra_pairwise_16s.RDS"))
+
 dist_df <- as.matrix(dist) %>%
   data.frame() %>%
   rownames_to_column("V1") %>%
   pivot_longer(cols = starts_with("S"), names_to = "Sample2", values_to = "dist") %>%
-  rename(Sample1 = V1) %>%
+  dplyr::rename(Sample1 = V1) %>%
   mutate(Sample1 = factor(Sample1, levels = ps@sam_data$id_16s, ordered = T),
          Sample2 = factor(Sample2, levels = ps@sam_data$id_16s, ordered = T)) %>%
   filter(Sample1 != Sample2, Sample1 < Sample2) %>%
@@ -101,7 +104,7 @@ stat_test <- dist_long %>%
     facet_grid(subj_comp~.) + 
     theme(strip.text.y = element_text(size = 14)))
 
-ggsave(filename = paste0(fig_dir, "Fig2a_subpanel_microbial_variability_across_locations.pdf"), plot = a)
+ggsave(filename = paste0(fig_dir_main_subpanels, "Fig2a_subpanel_microbial_variability_across_locations.pdf"), plot = a)
 
 medianCanberra_dist_bySubj <- dist_long %>%
   filter(subj_comp == "Within subject") %>%
@@ -186,7 +189,7 @@ stat_test_setType <- dist_var %>%
     scale_x_discrete(labels = function(x) str_wrap(x, width = 32)) +
     scale_color_manual(values = c("black", "wheat3"))) 
 
-ggsave(filename = paste0(fig_dir, "Fig2b_subpanel_microbial_variability_type_vs_temporal.pdf"), plot = b)
+ggsave(filename = paste0(fig_dir_main_subpanels, "Fig2b_subpanel_microbial_variability_type_vs_temporal.pdf"), plot = b)
 
 #######################################
 ## Fig 2C - Patchiness  
@@ -225,7 +228,7 @@ ggplot(top_rank, aes(x = (top_tax_abnd), y = (dna_conc))) +
           plot.margin = margin(t = fig_padding, l = fig_padding, r = fig_padding, b = fig_padding, unit = "pt")) + 
     guides(color = guide_legend(override.aes = list(shape = NA))))
 
-ggsave(paste0(fig_dir, "Fig2c_subpanel_capsule_patchiness.pdf"), plot = c, width = 7, height = 4)
+ggsave(paste0(fig_dir_main_subpanels, "Fig2c_subpanel_capsule_patchiness.pdf"), plot = c, width = 7, height = 4)
 
 #######################################
 # Figure 2D - Alpha diversity 
@@ -259,7 +262,7 @@ stat_test_alphaDiv <- df_capsule %>%
           plot.margin = margin(t = fig_padding, l = fig_padding, r = fig_padding, b = fig_padding, unit = "pt")) +
     scale_fill_manual(values = c("black", CapTypeAndStoolColors)))
 
-ggsave(paste0(fig_dir, "Fig2d_subpanel_alpha_diversity.pdf"), plot = d, width = 7, height = 4)
+ggsave(paste0(fig_dir_main_subpanels, "Fig2d_subpanel_alpha_diversity.pdf"), plot = d, width = 7, height = 4)
 
 
 

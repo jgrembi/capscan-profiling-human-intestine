@@ -12,6 +12,17 @@ library(here)
 library(ggtext)
 library(ggh4x)
 library(ggbeeswarm)
+library(ggpubr)
+library(ggvenn)
+library(ggalt)
+library(ggrepel)
+library(ggplot2)
+library(org.Hs.eg.db)
+library(missMDA)
+library(PCAtools)
+library(limma)
+library(viridis)
+library(corrr)
 library(corrplot)
 library(vegan)
 library(DESeq2)
@@ -20,10 +31,8 @@ library(cowplot)
 library(phyloseq)
 library(data.table)
 # library(DivNet)
-library(ggvenn)
 library(readxl)
 library(Hmisc)
-library(ggpubr)
 library(rstatix)
 library(wesanderson)
 library(RColorBrewer)
@@ -32,7 +41,6 @@ library(ropls)
 library(topicmodels)
 library(alto)
 library(gridExtra)
-library(ggplot2)
 library(tidyverse)
 
 
@@ -47,8 +55,10 @@ source(paste0(here::here(), "/0-base-functions.R"))
 #--------------------------------------------
 # raw_data_dir = paste0(here::here(), "/data/raw_data/")
 # sherlock_dir = paste0(raw_data_dir, "fromSherlock/")
-data_dir = paste0(here::here(), "/data/")
+data_dir = paste0(here::here(), "/data/data/")
 fig_dir = paste0(here::here(),"/4-figures/")
+fig_dir_main_subpanels = paste0(here::here(),"/4-figures/1-main-figure-subpanels/")
+fig_dir_ed_subpanels = paste0(here::here(),"/4-figures/2-extended-data-subpanels/")
 tab_dir = paste0(here::here(),"/6-tables/")
 results_dir = paste0(here::here(), "/results/")
 
@@ -91,7 +101,8 @@ theme_set(theme_minimal()+
               legend.text=element_markdown(size=14),
               legend.title = element_text(size = 14),
               axis.text = element_text(size = 14),
-              axis.title = element_text(size = 14)))
+              axis.title = element_text(size = 14),
+              strip.text = element_text(size = 14)))
 
 
 #--------------------------------------------

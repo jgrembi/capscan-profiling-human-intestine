@@ -16,7 +16,7 @@ source(paste0(here::here(), "/0-config.R"))
 # Figure 1A - capsule diagram and indended opening locations 
 #######################################
 # Read in .jpg of GI & capsules overview
-a_img <- image_read(paste0(fig_dir, "Fig1a_subpanel_gi_overview.png"))
+a_img <- image_read(paste0(fig_dir_main_subpanels, "Fig1a_subpanel_gi_overview.png"))
 a_ratio <- image_info(a_img)$height/image_info(a_img)$width
 (a <- ggplot() + 
     coord_fixed(a_ratio) + 
@@ -27,7 +27,7 @@ a_ratio <- image_info(a_img)$height/image_info(a_img)$width
 # Figure 1B - study design
 #######################################
 # Read in .jpg of study overview
-b_img <- image_read(paste0(fig_dir, "Fig1b_subpanel_study_overview.png"))
+b_img <- image_read(paste0(fig_dir_main_subpanels, "Fig1b_subpanel_study_overview.png"))
 b_ratio <- image_info(b_img)$height/image_info(b_img)$width
 (b <- ggplot() + 
     coord_fixed(b_ratio) + 
@@ -109,7 +109,7 @@ df2plot <- df %>%
   
 
 
-ggsave(paste0(fig_dir, 'Fig1c_subpanel_asv_family_level_barplots.pdf'), plot = c, width=12, height=5)
+ggsave(paste0(fig_dir_main_subpanels, 'Fig1c_subpanel_asv_family_level_barplots.pdf'), plot = c, width=12, height=5)
 
 
 #######################################
@@ -161,7 +161,7 @@ stat_test <- df_cap_samples %>%
           axis.title = element_text(size = 16),
           plot.margin = margin(t = fig_padding, l = fig_padding, r = fig_padding, b = fig_padding, unit = "pt")))
 
-ggsave(filename = paste0(fig_dir, "Fig1d_subpanel_capsule_pH.pdf"), plot = d, height = 6, width = 6)
+ggsave(filename = paste0(fig_dir_main_subpanels, "Fig1d_subpanel_capsule_pH.pdf"), plot = d, height = 6, width = 6)
 
 #######################################
 # Figure 1E - Ordination of all capsule, stool, and saliva samples
@@ -238,7 +238,7 @@ scores <- get_scores(pcoa_canberra, sample_data(ps)) %>%
                                 keywidth = unit(0, "pt")),
            shape = guide_legend(nrow = 3))) ## This line removes the point on the legend for the color
 
-ggsave(filename = paste0(fig_dir, "Fig1e_subpanel_pcoa_canberra.pdf"), plot = e, height = 6, width = 8)
+ggsave(filename = paste0(fig_dir_main_subpanels, "Fig1e_subpanel_pcoa_canberra.pdf"), plot = e, height = 6, width = 8)
 
 
 ## PERMANOVA to determine if saliva is significantly different
@@ -442,7 +442,7 @@ limmaRes_sig <- limmaRes %>%
         plot.margin = margin(r = -0.8, unit = "pt")))
 
 
-ggsave(paste0(fig_dir, "Fig1f_subpanel_diff_abundance.pdf"), plot = f, height = 5.8)
+ggsave(paste0(fig_dir_main_subpanels, "Fig1f_subpanel_diff_abundance.pdf"), plot = f, height = 5.8)
 
 
 
