@@ -126,7 +126,7 @@ hline_df <- data.frame(location = c("Devices", "Stool"),
     scale_fill_manual(values = CapAndStoolColors, guide = "none") +
     facet_grid(.~location, scales = "free_x")) 
 
-ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7a_subpanel_n_proteins_by_stool_v_devices.pdf"), plot = ed_7a)
+ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7a_n_proteins_by_stool_v_devices.pdf"), plot = ed_7a)
 
 ## Extended Data Figure 7B, Correlation ID with meta
 
@@ -143,7 +143,7 @@ d_stats %>%
     labs(x = "", y = "Number of proteins") +
     scale_y_continuous(limits = c(0,9000)))
 
-ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7b_subpanel_proteins_by_location.pdf"), plot = ed_7b)
+ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7b_proteins_by_location.pdf"), plot = ed_7b)
 
 ## Extended Data Figure 7C, Correlation CV with meta
 d_red %>%
@@ -167,7 +167,7 @@ d_red %>%
     scale_fill_manual(values = CapTypeAndStoolColors, guide = "none") +
     labs(x = ""))
 
-ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7c_subpanel_proteins_by_location.pdf"), plot = ed_7c)
+ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7c_proteins_by_location.pdf"), plot = ed_7c)
 
 ## Extended Data Figure 7D, Intensities by protein rank
 d_red %>%
@@ -224,7 +224,7 @@ d_red %>%
           axis.title = element_text(size = 14),
           strip.text = element_text(size = 14)))
 
-ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7d_subpanel_protein_rank_by_intensity.pdf"), plot = ed_7d)
+ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7d_protein_rank_by_intensity.pdf"), plot = ed_7d)
 
 
 ## Figure 4a, Protein intensity in capsule versus stool
@@ -695,6 +695,7 @@ protein_similarity <- pearson_df %>%
          sample_out = as.numeric(sample_out), 
          pair = ifelse(sample_in < sample_out, paste0(sample_in, "_", sample_out), paste0(Pellet_2, "_", sample_out))) %>%
   left_join(micro_similarity, by = "pair") %>%
+  mutate(subj15 = ifelse(Subject_1 == 3 | Subject_2 == 3, "Subj15", "Other")) %>%
   filter(!is.na(dist)) # filter out samples without Canberra distance calculated - these are samples with poor 16S sequencing
 
 
@@ -707,7 +708,15 @@ protein_similarity <- pearson_df %>%
     labs(x = "Microbiota Canberra distance between samples",
          y = "Correlation between host proteomes"))
 
+(main_4f_alternate <- ggplot(protein_similarity, 
+                            aes(x = 1-dist, y = value, color = location_1)) + 
+  geom_density2d(bins = 35, alpha = 0.5) + 
+  scale_color_manual(values = CapAndStoolColors, guide = "none") + 
+  labs(x = "1-[microbiota Canberra distance between samples]", y = "Pearson correlation between host proteoms")
+)
+
 ggsave(paste0(fig_dir_main_subpanels, "Fig_4f_subpanel_pearson_correlation_by_Canberra_dist.pdf"), plot = main_4f)
+ggsave(paste0(fig_dir_main_subpanels, "Fig_4f_alternate.pdf"), plot = main_4f_alternate)
 
 
 ## Make final Figure 4
