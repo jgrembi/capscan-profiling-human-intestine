@@ -141,7 +141,7 @@ ggsave(filename = paste0(fig_dir_ed_subpanels, "ED_Fig_2c_transit_time_by_pre_fo
                                 keywidth = unit(0, "pt"))))
 
 
-ggsave(filename = paste0(fig_dir, "transit-time-by-post-foods.pdf"), plot = post_capsule_foods)
+ggsave(filename = paste0(fig_dir_ed_subpanels, "ED_Fig_2d_transit_time_by_post_foods.pdf"), plot = post_capsule_foods)
 
 
 plot_grid(transit_time_bySubj, pre_capsule_foods, post_capsule_foods, labels = "AUTO", label_size = 16, nrow = 3, rel_heights = c(1, 1.15, 1.15))

@@ -722,7 +722,49 @@ if (dim(df2plot.filt)[1] > 0) {
 
 
 
-
+## custom function to rarefy to a subject's minimum sequencing depth, 
+## with functionality to record repeated iterations (i)
+## This function is used in 'ExtendedData_Figure_3.R'
+bySubj_rarefy <- function(s, i, phyloseq_object) {
+   s = "1"
+  ps_subj <- phyloseq_object %>%
+    prune_samples(phyloseq_object@sam_data$Subject == s, .)
+  
+  min_sample_depth = min(sample_sums(ps_subj))
+  
+  ps_evendepth <- rarefy_even_depth(ps_subj, 
+                                    sample.size = min_sample_depth, 
+                                    rngseed = FALSE, 
+                                    replace = T, 
+                                    trimOTUs = T, 
+                                    verbose = F)
+  alpha_div_sample <- estimate_richness(ps_evendepth, measures = "Shannon") %>%
+    mutate(Subject = s,
+           level = "sample", 
+           read_depth = min_sample_depth) %>%
+    rownames_to_column("ID")
+  
+  ps_sampleType <- merge_samples(ps_evendepth, "Type", fun = sum)
+  alpha_div_type <- estimate_richness(ps_sampleType, measures = "Shannon") %>%
+    mutate(Subject = s, 
+           level = "type",
+           read_depth = min_sample_depth) %>%
+    rownames_to_column("ID")
+  
+  ps_sampleSet <- merge_samples(ps_evendepth, "Set", fun = sum)
+  alpha_div_set <- estimate_richness(ps_sampleSet, measures = "Shannon") %>%
+    mutate(Subject = s, 
+           level = "set",
+           read_depth = min_sample_depth) %>%
+    rownames_to_column("ID")
+  
+  alpha_div_allSubj <- alpha_div_sample %>%
+    bind_rows(alpha_div_type) %>%
+    bind_rows(alpha_div_set) %>%
+    mutate(i = i)
+  
+  return(alpha_div_allSubj)
+}
 
 
 
