@@ -269,5 +269,5 @@ ggsave(paste0(fig_dir_main_subpanels, "Fig_2d_subpanel_alpha_diversity.pdf"), pl
 plot_grid(plot_grid(a, b, labels = c("A", "B"), label_size = 16), 
           plot_grid(c, d, labels = c("C", "D"), label_size = 16), rel_heights = c(1.3, 1), nrow = 2)
 
-ggsave(paste0(fig_dir, "Figure_2_variability.pdf"), width = 12, height = 8)
+ggsave(paste0(fig_dir, "Figure_2.pdf"), width = 12, height = 8)
 

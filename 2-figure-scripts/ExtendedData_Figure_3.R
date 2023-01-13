@@ -166,4 +166,4 @@ plot_grid(a, types, sets,
           label_size = 16, 
           rel_heights = c(0.6, 1, 1))
 
-ggsave(paste0(fig_dir, "ED_Figure_3_gamma_diversity.pdf"), width = 10, height = 14)
+ggsave(paste0(fig_dir, "ED_Figure_3.pdf"), width = 10, height = 14)

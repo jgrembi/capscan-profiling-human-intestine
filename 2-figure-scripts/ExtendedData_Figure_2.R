@@ -54,7 +54,7 @@ cols <- scales::viridis_pal(end = 0.6)(length(unique(df_samples_plot$Time_of_day
                                 override.aes = list(shape = NA),
                                 keywidth = unit(0, "pt"))))
 
-ggsave(filename = paste0(fig_dir_ed_subpanels, "ED_Fig2b_subject_transit_time.pdf"), plot = transit_time_bySubj)
+ggsave(filename = paste0(fig_dir_ed_subpanels, "ED_Fig_2b_subject_transit_time.pdf"), plot = transit_time_bySubj)
 
 #######################################
 # ED Fig. 2c,d - Transit time of devices by diet and time
