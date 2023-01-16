@@ -699,6 +699,10 @@ protein_similarity <- pearson_df %>%
   filter(!is.na(dist)) # filter out samples without Canberra distance calculated - these are samples with poor 16S sequencing
 
 
+subset_list <- sample(length(protein_similarity$sample_in), size = 2220, replace = F)
+
+pro_subsample <- protein_similarity[subset_list, ]
+  
 (main_4f <- ggplot(protein_similarity, 
                    aes(x = dist, y = value, color = location_1)) + 
     geom_point(alpha = 0.6) +
@@ -708,9 +712,18 @@ protein_similarity <- pearson_df %>%
     labs(x = "Microbiota Canberra distance between samples",
          y = "Correlation between host proteomes"))
 
+ggplot(pro_subsample, 
+       aes(x = dist, y = value, color = location_1)) + 
+  geom_point(alpha = 0.6) +
+  scale_x_reverse() + 
+  scale_color_manual(values = CapAndStoolColors, guide = "none") + 
+  geom_smooth(method = "lm") +
+  labs(x = "Microbiota Canberra distance between samples",
+       y = "Correlation between host proteomes")
+
 (main_4f_alternate <- ggplot(protein_similarity, 
                             aes(x = 1-dist, y = value, color = location_1)) + 
-  geom_density2d(bins = 35, alpha = 0.5) + 
+  geom_density2d(bins = 55, alpha = 0.5) + 
   scale_color_manual(values = CapAndStoolColors, guide = "none") + 
   labs(x = "1-[microbiota Canberra distance between samples]", y = "Pearson correlation between host proteoms")
 )
