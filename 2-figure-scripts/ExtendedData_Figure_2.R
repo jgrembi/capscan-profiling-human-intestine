@@ -13,6 +13,12 @@ source(paste0(here::here(), "/0-config.R"))
 #######################################
 # ED Fig. 2a - Schematic overview generated in adobe illustrator
 #######################################
+a_img <- image_read(paste0(fig_dir_ed_subpanels, "ED_Fig_2a_sample_flowchart.png")) 
+a_ratio <- image_info(a_img)$height/image_info(a_img)$width
+(a <- ggplot() + 
+    coord_fixed(a_ratio) + 
+    background_image(a_img)) + 
+  theme(plot.margin = margin(t = fig_padding, l = fig_padding, r = fig_padding, b = fig_padding/3, unit = "pt"))
 
 #######################################
 # ED Fig. 2b - Transit time of devices by subject
