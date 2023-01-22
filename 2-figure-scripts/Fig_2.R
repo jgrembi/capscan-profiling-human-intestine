@@ -196,8 +196,8 @@ ggsave(filename = paste0(fig_dir_main_subpanels, "Fig_2b_subpanel_microbial_vari
 #######################################
 ## Call in phyloseq object again, but don't transform sample counts
 ps_untransformed <- readRDS(clean_phyloseq_object) %>%
-  subset_samples(!drop_16s)
-
+  subset_samples(!drop_16s & Set %in% c("2", "3", "4", "5", "Stool", "Saliva"))
+  
 top_rank <- data.frame(id_16s = rownames(ps_untransformed@sam_data), 
                        top_rank = unlist(lapply(1:dim(ps_untransformed@otu_table)[1], function(x) max(ps_untransformed@otu_table[x,])))) %>%
   left_join(ps_untransformed@sam_data %>%
@@ -235,9 +235,8 @@ ggsave(paste0(fig_dir_main_subpanels, "Fig_2c_subpanel_capsule_patchiness.pdf"),
 #######################################
 # Across capsule types
 
-df_capsule <- ps@sam_data %>%
+df_capsule <- ps_untransformed@sam_data %>%
   data.frame %>%
-  filter(location != "Control") %>%
   mutate(Type = factor(Type, levels = c("Saliva", "Capsule 1", "Capsule 2", "Capsule 3", "Capsule 4", "Stool"), labels = c("Saliva", "Device 1", "Device 2", "Device 3", "Device 4", "Stool")))
 
 
@@ -266,8 +265,8 @@ ggsave(paste0(fig_dir_main_subpanels, "Fig_2d_subpanel_alpha_diversity.pdf"), pl
 
 
 
-plot_grid(plot_grid(a, b, labels = c("A", "B"), label_size = 16), 
-          plot_grid(c, d, labels = c("C", "D"), label_size = 16), rel_heights = c(1.3, 1), nrow = 2)
+plot_grid(plot_grid(a, b, labels = c("a", "b"), label_size = 16), 
+          plot_grid(c, d, labels = c("c", "d"), label_size = 16), rel_heights = c(1.2, 1), nrow = 2)
 
 ggsave(paste0(fig_dir, "Figure_2.pdf"), width = 12, height = 8)
 

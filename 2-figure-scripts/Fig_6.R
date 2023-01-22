@@ -1,7 +1,7 @@
 #######################################
 # Capsule Study - Gen1 
 #
-# Generate Figure 2 for manuscript
+# Generate Figure 6 for manuscript
 #
 # Authors: Becca Culver & Jess Grembi
 #######################################

@@ -41,6 +41,7 @@ library(ropls)
 library(topicmodels)
 library(alto)
 library(gridExtra)
+library(dplyr)
 library(tidyverse)
 
 

@@ -39,14 +39,14 @@ b_ratio <- image_info(b_img)$height/image_info(b_img)$width
 # Figure 1C - barplots showing relative abundance by ASV family
 #######################################
 
-ps.bs.raw <- readRDS(phyloseq_bilesalt) %>% subset_samples(., drop_16s == F)
-ps.bs <- subset_samples(ps.bs.raw, !drop_16s & Set %in% c("2", "3", "4", "5", "Stool")) %>%
+ps.raw <- readRDS(clean_phyloseq_object) 
+ps_relabnd <- subset_samples(ps.raw, !drop_16s & Set %in% c("2", "3", "4", "5", "Stool")) %>%
   filter_taxa(., function(x) sum(x > 3) > (0.05*length(x)), TRUE) %>% # Gets rid of all taxa not found at a count of 3 in at least 5% of samples (that's 14 samples)
   transform_sample_counts(.,function(x) x/sum(x))
 
 
 # Generate dataframe to plot                            
-df<-psmelt(ps.bs) %>%
+df<-psmelt(ps_relabnd) %>%
   mutate(title=paste0('Subj ',Subject,',\nSet ',Set)) %>%  
   mutate(Type2 = ifelse(Type == 'Capsule 1','D1',
                         ifelse(Type == 'Capsule 2','D2',
@@ -243,8 +243,8 @@ ggsave(filename = paste0(fig_dir_main_subpanels, "Fig_1e_subpanel_pcoa_canberra.
 
 ## PERMANOVA to determine if saliva is significantly different
 dist <- distance(ps, method = "canberra", type = "samples")
-adonis(dist~location, data = ps@sam_data %>% data.frame)
-
+res <- adonis2(dist~location, data = ps@sam_data %>% data.frame)
+res$`Pr(>F)`
 
 #######################################
 # Figure 1F - Differential abundance analysis
@@ -456,7 +456,7 @@ g <- list(a,b,d,c,e,f)
 p.final <- arrangeGrob(grobs=lapply(g,"+",margin), layout_matrix = lay)
 
 (p <- as_ggplot(p.final) + # transform to a ggplot
-  draw_plot_label(label = c("A", "B", "D", "C", "E", "F"), size = 18, x = c(0, 0.33, 0.66, 0, 0, 0.5), y = c(1,1,1,0.8,0.4,0.4)))
+  draw_plot_label(label = c("a", "b", "d", "c", "e", "f"), size = 18, x = c(0, 0.33, 0.66, 0, 0, 0.5), y = c(1,1,1,0.8,0.4,0.4)))
 
 ggsave(filename = paste0(fig_dir, "Figure_1.pdf"), p, width = 16, height = 20)
  

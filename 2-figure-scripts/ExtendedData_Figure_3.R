@@ -32,7 +32,7 @@ table(tmp$location)
     geom_boxplot(outlier.shape = NA) + 
     geom_jitter(width = 0.28,  alpha = 0.3, shape = 1) +
     stat_compare_means(label = "p.signif", method="wilcox") +
-    labs(x = "", y = expression('log'[2]*'(ASV abundance)')) + 
+    labs(x = "", y = expression('log'[2]*'(ASV count)')) + 
     facet_wrap(~Phylum, ncol = 5))
 
 ggsave(filename = paste0(fig_dir_ed_subpanels, "ED_Fig_3a_phylum_comparisons.pdf"), plot = a, width=10, height=6)

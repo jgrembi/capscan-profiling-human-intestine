@@ -16,7 +16,6 @@ source(paste0(here::here(), "/0-config.R"))
 
 d <- read_tsv(paste0(data_dir,"proteinGroups.tsv"))
 # lfq <- read_tsv(paste0(data_dir,"proteinGroups_lfq.tsv"))
-# meta <- read_csv(paste0(data_dir,"meta.csv"))
 meta <- readRDS(sample_data) %>%
   mutate(Pellet = ifelse(DeviceID %in% c("Saliva", "Stool"), Main, Pellet)) %>%
   filter(Set %in% c("2", "3", "4", "5", "Stool", "Saliva"), Pellet != "n/a") %>%
@@ -228,6 +227,23 @@ ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7d_protein_rank_by_intensity.pdf"), 
 
 
 ## Figure 4a, Protein intensity in capsule versus stool
+#-------------------
+### # summary of proteins per sample as reported in text
+#-------------------
+d_red %>%
+  filter(sample_short %in% stats_include) %>%
+  dplyr::select(!sample) %>%
+  filter(Protein %in% Proteins_0.7) %>%
+  mutate(value = log10(value)) %>%
+  left_join(meta_red %>% rownames_to_column("sample_short")) %>%
+  filter(!is.na(value)) %>%
+  group_by(sample_short) %>% # this is the sampleID
+  summarise(n = n()) %>%
+  ungroup() %>%
+  summarise(mean = mean(n),
+            sd = sd(n))
+
+
 d_red %>%
   filter(sample_short %in% stats_include) %>%
   dplyr::select(!sample) %>%
@@ -266,14 +282,6 @@ ggsave(paste0(fig_dir_main_subpanels, "Fig_4a_subpanel_abnd_stool_v_devices.pdf"
 
 
 ## Figure 4d, Pearson correlations
-d_red %>%
-  filter(sample_short %in% stats_include) %>%
-  drop_na(value) %>%
-  mutate(value = log2(value)) %>%
-  dplyr::select(-sample) %>%
-  spread(sample_short, value) %>%
-  column_to_rownames("Protein") -> d_wide
-
 pearson <- cor(d_wide, use = "pairwise.complete.obs") 
 ## set lower triangle (which repeats values from upper triangle) to NA so we can easily remove later
 pearson[lower.tri(pearson, diag = T)] <- NA
@@ -369,7 +377,7 @@ pca_res <- data.frame(p$rotated) %>%
          y = expression("Principal component 2\n(2.7% variation)")) +
     # labs(x = "Principal component 1 (4.6% variation)", 
     # y = "Principal component 2 (2.7% variation)") +
-    # coord_fixed(ratio = 2.66/4.62) + 
+    coord_fixed(ratio = 2.66/4.62) +
     # theme_minimal() + 
     theme(plot.margin = margin(0.5, 0.5, 1, 1, "cm")))
 
@@ -398,7 +406,7 @@ ggsave(paste0(fig_dir_main_subpanels, "Fig_4c_subpanel_pca.pdf"), plot = main_4c
          title = "Subject 15") +
     # labs(x = "Principal component 1 (4.6% variation)", 
     # y = "Principal component 2 (2.7% variation)") +
-    # coord_fixed(ratio = 2.66/4.62) + 
+    coord_fixed(ratio = 2.66/4.62) +
     theme(plot.title = element_text(hjust = 0.5),
           plot.margin = margin(0.5, 0.5, 0.5, 1, "cm")))  
 
@@ -454,7 +462,7 @@ pca_res_top500 <- data.frame(p_top500$rotated) %>%
          title = "Top 500 proteins") +
     # labs(x = "Principal component 1 (4.6% variation)", 
     # y = "Principal component 2 (2.7% variation)") +
-    # coord_fixed(ratio = 4.99/8.02) + 
+    coord_fixed(ratio = 4.99/8.02) +
     theme(plot.margin = margin(0.5, 0.5, 0.5, 1, "cm"),
           plot.title = element_text(hjust = 0.5, face = "bold")))
 
@@ -529,12 +537,12 @@ pca_res_nn <- data.frame(p_nn$rotated) %>%
          title = "Not normalized data") +
     # labs(x = "Principal component 1 (4.6% variation)", 
     # y = "Principal component 2 (2.7% variation)") +
-    # coord_fixed(ratio = 1.9/44.69) + 
+    coord_fixed(ratio = 1.9/44.69) +
     theme(plot.margin = margin(0.5, 0.5, 0.5, 1, "cm"),
           plot.title = element_text(hjust = 0.5, 
                                     face = "bold")))
 
-ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7f_pca_not_normalized.pdf"), plot = ed_7f)
+ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7f_pca_not_normalized.pdf"), plot = ed_7f, height = 3, width = 26)
 
 # biplot(p_nn,
 #        colby = 'location',
@@ -699,29 +707,17 @@ protein_similarity <- pearson_df %>%
   filter(!is.na(dist)) # filter out samples without Canberra distance calculated - these are samples with poor 16S sequencing
 
 
-subset_list <- sample(length(protein_similarity$sample_in), size = 2220, replace = F)
+# (main_4f <- ggplot(protein_similarity, 
+#                    aes(x = dist, y = value, color = location_1)) + 
+#     geom_point(alpha = 0.6) +
+#     scale_x_reverse() + 
+#     scale_color_manual(values = CapAndStoolColors, guide = "none") + 
+#     geom_smooth(method = "lm", fill = "black", alpha = 1) +
+#     labs(x = "Microbiota Canberra distance between samples",
+#          y = "Correlation between host proteomes"))
 
-pro_subsample <- protein_similarity[subset_list, ]
-  
+
 (main_4f <- ggplot(protein_similarity, 
-                   aes(x = dist, y = value, color = location_1)) + 
-    geom_point(alpha = 0.6) +
-    scale_x_reverse() + 
-    scale_color_manual(values = CapAndStoolColors, guide = "none") + 
-    geom_smooth(method = "lm", fill = "black", alpha = 1) +
-    labs(x = "Microbiota Canberra distance between samples",
-         y = "Correlation between host proteomes"))
-
-ggplot(pro_subsample, 
-       aes(x = dist, y = value, color = location_1)) + 
-  geom_point(alpha = 0.6) +
-  scale_x_reverse() + 
-  scale_color_manual(values = CapAndStoolColors, guide = "none") + 
-  geom_smooth(method = "lm") +
-  labs(x = "Microbiota Canberra distance between samples",
-       y = "Correlation between host proteomes")
-
-(main_4f_alternate <- ggplot(protein_similarity, 
                             aes(x = 1-dist, y = value, color = location_1)) + 
   geom_density2d(bins = 55, alpha = 0.5) + 
   scale_color_manual(values = CapAndStoolColors, guide = "none") + 
@@ -729,7 +725,6 @@ ggplot(pro_subsample,
 )
 
 ggsave(paste0(fig_dir_main_subpanels, "Fig_4f_subpanel_pearson_correlation_by_Canberra_dist.pdf"), plot = main_4f)
-ggsave(paste0(fig_dir_main_subpanels, "Fig_4f_alternate.pdf"), plot = main_4f_alternate)
 
 
 ## Make final Figure 4
