@@ -41,12 +41,14 @@ df_summary <- bsh_hmm_filt %>%
   summarise(n = n()) %>%
   left_join(n_genes %>%
               select(-n), by = "meta_samplename") %>%
-  mutate(n_norm = n/n_genes,
-         loc = ifelse(Set == "Stool", "Stool", "Small Intestine")) %>%
-  mutate(Subject = fct_reorder(Subject, n_norm, .fun = 'median', na.rm = T))
+  mutate(n_norm = n/n_genes) %>%
+  mutate(Subject = fct_reorder(Subject, n_norm, .fun = 'median', na.rm = T)) %>%
+  filter(!drop_meta, Set %in% c("2", "3", '4', "5", "Stool"))
+
+table(df_summary$location)
 
 (bsh_uniqueBySubj_plot <- ggplot(df_summary,
-                                 aes(x = Subject, y = n_norm*100, color = loc)) + 
+                                 aes(x = Subject, y = n_norm*100, color = location)) + 
     geom_boxplot(outlier.shape = NA) + 
     geom_point(position = position_jitterdodge(0.2), alpha = 0.4) +
     # geom_beeswarm(color = "black") +
@@ -59,7 +61,6 @@ df_summary <- bsh_hmm_filt %>%
 
 ggsave(filename = paste0(fig_dir_ed_subpanels, "ED_Fig_8a_summary_pct_bsh_genes_by_subj.pdf"), plot = bsh_uniqueBySubj_plot)
 
-## There were a median of 7.5 unique bsh genes detected in capsule samples comapred to 16.8 in stool samples (p = ) 
 df_summary %>%
   group_by(location) %>%
   summarise(median = median(n_norm))
@@ -68,7 +69,6 @@ wilcox.test(x = df_summary$n_norm[df_summary$location == "Capsule"],
             y = df_summary$n_norm[df_summary$location == "Stool"],
             alternative = "two.sided",
             conf.int = T)
-#  p < 1.01e-11
 
 ## Contig depth data
 df_contigs <- read.table(paste0(data_dir, "0_contig_depth_summary.txt"), header = T) %>%
@@ -85,11 +85,13 @@ contig_ranks <- df_contigs %>%
   left_join(bsh_hmm_filt, by = c("meta_samplename", "contigName")) %>%
   mutate(bsh = ifelse(is.na(bsh), "bsh negative", bsh)) %>%
   left_join(df_samples %>%
-              select(Subject:Main, location, meta_samplename) %>%
+              select(Subject:Main, location, meta_samplename, drop_meta) %>%
               unique, by = "meta_samplename") %>%
   mutate(Type = gsub("Capsule", "Device", Type),
          location = gsub("Capsule", "Devices", location))
 
+table(contig_ranks %>% filter(!drop_meta, Set %in% c("2", "3", "4", "5", "Stool")) %>% select(meta_samplename, Type, location) %>% unique() %>% pull(location))
+table(contig_ranks$Type)
 
 (bsh_coverage_hist <- ggplot(contig_ranks %>% filter(location %in% c("Stool", "Devices"), bsh == "bsh positive"), 
                              aes(x = rank, fill = location)) + 

@@ -90,15 +90,15 @@ stat_test <- dist_long %>%
 (a <- ggplot(dist_long %>%
                          mutate(location_cat = factor(location_cat, levels = c("Saliva_Saliva", "Capsule_Capsule", "Stool_Stool"), labels = c("Saliva", "Devices", "Stool"))), 
                        aes(x = location_cat, y = mean_dist, color = location_cat)) + 
-    geom_boxplot(outlier.shape = NA) + 
-    # ggbeeswarm::geom_beeswarm(alpha = 0.3) + 
-    geom_jitter(width = 0.28,  alpha = 0.3, shape = 16) +
+    geom_boxplot(aes(fill = location_cat), outlier.shape = NA, alpha = 0.5) + 
+    geom_jitter(position = position_jitterdodge(jitter.width = 0.4),  
+                alpha = 0.8, shape = 16, size = 2) +
     stat_pvalue_manual(stat_test, label = "p.adj.signif",
                        tip.length = 0.01,
                        coord.flip = T,
                        bracket.shorten = 0.05) +
-    scale_color_manual(values = c("black", CapAndStoolColors), guide = "none") + #"grey25", "#78B7C5", "#F21C00"
-    # scale_shape_manual(values = c(1,2)) +
+    scale_color_manual(values = c("black", CapAndStoolColors), guide = "none") + 
+    scale_fill_manual(values = c("black", CapAndStoolColors), guide = "none") + 
     labs(y = paste0(toupper(substr(method, 1, 1)), substr(method, 2, nchar(method)), " distance"), x = "", color = "") + 
     coord_flip() +
     facet_grid(subj_comp~.) + 
@@ -174,8 +174,8 @@ stat_test_setType <- dist_var %>%
 (b <- ggplot(dist_var %>%
                          mutate(group_name = factor(ifelse(group_name %in% c("Capsule 1", "Capsule 2", "Capsule 3", "Capsule 4"), group_name, "Other"), levels = c("Capsule 1", "Capsule 2", "Capsule 3", "Capsule 4", "Other"))),
                        aes(x = group, y = mean_dist, color = experiment)) + 
-    geom_boxplot(outlier.shape = NA) + 
-    geom_jitter(width = 0.3, alpha = 0.4, shape = 1) +
+    geom_boxplot(aes(fill = experiment), outlier.shape = NA, alpha = 0.5) + 
+    geom_jitter(width = 0.3, alpha = 0.8, shape = 16,size = 2) +
     stat_pvalue_manual(stat_test_setType, label = "p.adj.signif",
                        tip.length = 0.01,
                        y.position = c(0.94, 0.91, 0.88),
@@ -187,7 +187,8 @@ stat_test_setType <- dist_var %>%
     theme(legend.position = "bottom",
           legend.margin = margin(0)) +
     scale_x_discrete(labels = function(x) str_wrap(x, width = 32)) +
-    scale_color_manual(values = c("black", "wheat3"))) 
+    scale_color_manual(values = c("black", "wheat3")) + 
+    scale_fill_manual(values = c("black", "wheat3"), guide = "none")) 
 
 ggsave(filename = paste0(fig_dir_main_subpanels, "Fig_2b_subpanel_microbial_variability_type_vs_temporal.pdf"), plot = b)
 
@@ -211,8 +212,8 @@ ggplot(top_rank, aes(x = (top_tax_abnd), y = (dna_conc))) +
   geom_point() + 
   geom_smooth(method = "lm")
 
-(c <- ggplot(top_rank, aes(top_tax_abnd, color = Type)) + 
-    stat_ecdf(aes(alpha = 0.2), geom = "point") + 
+(c <- ggplot(tt, aes(x = top_tax_abnd, color = Type)) + 
+    stat_ecdf(alpha = 0.6, geom = "point", pad = F) + 
     labs(x = "Relative abundance of most abundant ASV", y = "Cumulative distribution function", color = "Sample type") +
     scale_alpha(guide = "none") + 
     # guides(colour = guide_legend(nrow = 1)) +

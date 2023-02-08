@@ -13,17 +13,18 @@ source(paste0(here::here(), "/0-config.R"))
 #######################################
 # ED Fig. 3a - Abundance of taxa at the phylum-level
 #######################################
-ps.bs <- readRDS(phyloseq_bilesalt) %>% subset_samples(., drop_16s == F) %>%
+ps <- readRDS(clean_phyloseq_object) %>% 
+  subset_samples(., drop_16s == F) %>%
   subset_samples(., Set %in% c("2", "3", "4", "5", "Stool")) %>%
-  filter_taxa(., function(x) sum(x > 3) > (0.05*length(x)), TRUE) %>% # Gets rid of all taxa not found at a count of 3 in at least 5% of samples (that's 14 samples)
+  # filter_taxa(., function(x) sum(x > 3) > (0.05*length(x)), TRUE) %>% # Gets rid of all taxa not found at a count of 3 in at least 5% of samples (that's 14 samples)
   tax_glom("Phylum") %>%
   transform_sample_counts(function(x) {log2(x + 1)})
 
-ps.bs@sam_data$Type <- gsub("Capsule", "Device", ps.bs@sam_data$Type)
-ps.bs@sam_data$location <- gsub("Capsule", "Devices", ps.bs@sam_data$location)
+ps@sam_data$Type <- gsub("Capsule", "Device", ps@sam_data$Type)
+ps@sam_data$location <- gsub("Capsule", "Devices", ps@sam_data$location)
 
 # Some phylum for each sample
-df2plot_a <- psmelt(ps.bs) %>%
+df2plot_a <- psmelt(ps) %>%
   filter(Abundance > 0)
 tmp<-df2plot_a %>% select(Main, location) %>% unique()
 table(tmp$location)

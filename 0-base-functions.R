@@ -76,7 +76,15 @@ get_scores <- function(pcoa_out, smp_data, axes = 1:2){
   return(sample_scores)
 }
 
-
+get_scores_votu <- function(pcoa_out, smp_data, axes = 1:2){
+  scores <- pcoa_out$vectors[, axes]
+  colnames(scores) <- paste0("PC", axes)
+  # Combine sample scores and sample data
+  sample_scores <- data.frame(scores, stringsAsFactors = FALSE) %>%
+    rownames_to_column("meta_samplename") %>%
+    left_join(smp_data) 
+  return(sample_scores)
+}
 
 get_evals <- function(pcoa_out) {
   evals <- pcoa_out$values[,1]

@@ -62,7 +62,7 @@ label.df <- data.frame(h_incubate = c("58h", "87h"), Type = c("Device 2", "Devic
       "darkorange4", "brown", "gray90", "gray20", "gray50"
     )))
 
-ggsave(filename = paste0(fig_dir, "ExtendedData_Figure_1_blooming.pdf"), blooming, width = 14)
+ggsave(filename = paste0(fig_dir, "ED_Figure_1.pdf"), blooming, width = 14)
 
 ########################
 ## Below are additional analyses that produces the values reported in this section of the manuscript. 

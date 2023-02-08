@@ -14,16 +14,17 @@ source(paste0(here::here(), "/0-config.R"))
 
 ### -- Data files
 
-d <- read_tsv(paste0(data_dir,"proteinGroups.tsv"))
-# lfq <- read_tsv(paste0(data_dir,"proteinGroups_lfq.tsv"))
+d <- read_tsv(paste0(data_dir,"proteinGroups.tsv")) %>%
+  mutate(`Gene names` = ifelse(`Protein IDs` == "A0A3S8TMF2;A0A0G2JR65;A0A0G2JM87", "MUC2", `Gene names`))
+
 meta <- readRDS(sample_data) %>%
   mutate(Pellet = ifelse(DeviceID %in% c("Saliva", "Stool"), Main, Pellet)) %>%
   filter(Set %in% c("2", "3", "4", "5", "Stool", "Saliva"), Pellet != "n/a") %>%
   select(DeviceID:Super,Swallow_date:Swallow_time, Recover_date:Recover_time, Hours_in_body, location) %>%
   unique %>%
   mutate(location = gsub("Capsule", "Device", as.character(location)))
-### -- Data wrangling
 
+### -- Data wrangling
 # Filter data by contaminants, reverse, and only identified by site
 d %>%
   filter(is.na(`Potential contaminant`)) %>%
@@ -35,10 +36,7 @@ d_filtered %>%
   dplyr::select(-"Majority protein IDs") %>%
   column_to_rownames("Protein IDs")-> d_lfq
 
-#d_lfq <- read_tsv("./proteinGroups_lfq.tsv")
-
 # Rename columns
-
 colnames_unique <- data.frame(col_ori = colnames(d_lfq),
                               col_ori_short = str_replace_all(colnames(d_lfq), ".*T760_", ""))
 
@@ -67,7 +65,6 @@ meta_red <- meta %>%
          Type = gsub("Capsule", "Device", Type))
 
 # Sample exclusion
-
 d_red %>%
   drop_na(value) %>%
   right_join(meta_red %>% rownames_to_column("sample_short")) %>%
@@ -86,7 +83,6 @@ stats_include <- d_stats %>%
   pull(sample_short)
 
 # Wide data format
-
 d_red %>%
   filter(sample_short %in% stats_include) %>%
   drop_na(value) %>%
@@ -109,20 +105,22 @@ d_stats %>%
   mutate(`Sample ID` = c(1:length(unique(sample_short)))) %>%
   ungroup() %>%
   mutate(location = ifelse(sample_short %in% stats_include, as.character(location), "excluded"),
-         location = factor(location, levels = c("Device", "Stool", "excluded"), labels = c("Devices", "Stool", "excluded"))) -> fig_ed7A_d
+         location = factor(location, levels = c("Device", "Stool"), labels = c("Devices", "Stool"))) -> fig_ed7A_d
+
+table(fig_ed7A_d$location)
 
 hline_df <- data.frame(location = c("Devices", "Stool"), 
                        median = c(round(stats_median$median[1], 0), round(stats_median$median[2], 0)),
                        xlab = c(180, 45), 
                        ylab = c(stats_median$median[1]-600, stats_median$median[2]-600))
-(ed_7a <- ggplot(data = fig_ed7A_d %>%
-                   filter(location != "excluded"), aes(x = `Sample ID`, y = n, fill = location))+
-    geom_point(pch = 21, color = "grey40", size = 3) +
+(ed_7a <- ggplot(fig_ed7A_d, 
+                 aes(x = `Sample ID`, y = n, color = location))+
+    geom_point(size = 3, alpha = 0.5) +
+    scale_color_manual(values = CapAndStoolColors, guide = "none") +
     scale_y_continuous(limits = c(0,10000)) +
     labs(y = "Number of proteins") +
     geom_hline(data = hline_df, aes(yintercept = median), lty = "dotted", lwd = 2, color = "grey20") +
-    geom_text(data = hline_df, aes(x = xlab, y = ylab, label = median), fontface = "bold", size = 6) +# geom_hline(yintercept = stats_median$median[2], lty = "dotted", lwd = 1, color = "grey20") +
-    scale_fill_manual(values = CapAndStoolColors, guide = "none") +
+    geom_text(data = hline_df, aes(x = xlab, y = ylab, label = median), fontface = "bold", size = 6) +
     facet_grid(.~location, scales = "free_x")) 
 
 ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7a_n_proteins_by_stool_v_devices.pdf"), plot = ed_7a)
@@ -136,13 +134,20 @@ d_stats %>%
   mutate(location = ifelse(sample_short %in% stats_include, location, "excluded"),
          Type = gsub("Device", "", Type)) -> fig_ed7B_d
 
+table(fig_ed7B_d$Type)
+
 (ed_7b <- ggplot(data = fig_ed7B_d, aes(x = Type, y = n, group = Type, fill = Type)) +
     geom_boxplot() +
     scale_fill_manual(values = CapTypeAndStoolColors, guide = "none") +
     labs(x = "", y = "Number of proteins") +
     scale_y_continuous(limits = c(0,9000)))
 
-ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7b_proteins_by_location.pdf"), plot = ed_7b)
+my_grob1 <- grobTree(textGrob("Device type", x = 0.48, y = 1.2, just = c("center", "center"), gp = gpar(fontsize = 16), check.overlap = F),
+                     linesGrob(c(0.18, 0.78), 1.8, gp = gpar(lwd = 1)))
+
+ed_7b_final <- grid.arrange(ed_7b, my_grob1, nrow= 2, heights = c(16, 1))
+
+ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7b_n_proteins_by_location.pdf"), plot = ed_7b_final, height = 6, width = 6)
 
 ## Extended Data Figure 7C, Correlation CV with meta
 d_red %>%
@@ -161,12 +166,16 @@ d_red %>%
          Type = gsub("Device", "", Type)) %>%
   drop_na(color) -> fig_ed7C_d
 
+
 (ed_7c <- ggplot(data = fig_ed7C_d, aes(x = Type, y = `CV [%]`, group = Type, fill = Type))+
     geom_violin(draw_quantiles = c(0.5))+
     scale_fill_manual(values = CapTypeAndStoolColors, guide = "none") +
     labs(x = ""))
 
-ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7c_proteins_by_location.pdf"), plot = ed_7c)
+
+ed_7c_final <- grid.arrange(ed_7c, my_grob1, nrow= 2, heights = c(16, 1))
+
+ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7c_cv_proteins_by_location.pdf"), plot = ed_7c_final, height = 6, width = 6)
 
 ## Extended Data Figure 7D, Intensities by protein rank
 d_red %>%
@@ -210,10 +219,6 @@ d_red %>%
                     # nudge_y = 0.0001,
                     nudge_x = 350
     ) +
-    # geom_text(data = figD_d %>% slice_min(`Protein rank`, n = 12),
-    #           aes(x = 500, y = log10(`LFQ intensity`), label = name),
-    #           nudge_y = 0.001
-    #                 ) +
     facet_wrap(.~location) + 
     theme_classic() + 
     theme(strip.background = element_blank(),
@@ -267,16 +272,19 @@ d_red %>%
               select(`Protein IDs`, `Gene names`), by = c("Protein" = "Protein IDs")) %>%
   mutate(label = ifelse(abs(diff) > 0.5, TRUE, FALSE),
          color = ifelse(diff > 0.5, '#743C2F', ifelse(diff < 0.5, '#2364AA', NA)),
+         ## We needed to manually annotate
          name = ifelse(is.na(Symbol) | Symbol == "NA", gsub(';.*', "", `Gene names`), Symbol)) -> d_plot_rank_location
 
-(main_4a <- ggplot() +
-    geom_point(data = d_plot_rank_location, aes(x = Device, y = Stool), alpha = 0.7) +
+(main_4a <- ggplot(d_plot_rank_location, aes(x = Stool, y = Device)) +
+    geom_point(alpha = 0.7) +
     geom_abline(intercept = 0, slope = 1, lty = "dotted", size = 1, color = "grey") +
-    labs(x = expression('log'[10]*' (abundance in devices)'), y = expression('log'[10]*' (abundance in stool)')) +
-    geom_smooth(method = "lm") +
-    geom_point(data = (d_plot_rank_location %>% filter(label == TRUE)), aes(x = Device, y = Stool, color = color), size = 3) +
+    labs(y = expression('log'[10]*' (abundance in devices)'), x = expression('log'[10]*' (abundance in stool)')) +
+    geom_point(data = (d_plot_rank_location %>% filter(label == TRUE)), 
+               aes(color = color), size = 3) +
     scale_color_manual(values = rev(CapAndStoolColors), guide = "none") +
-    geom_text_repel(data = d_plot_rank_location %>% filter(label == TRUE), aes(x = Device, y = Stool, label = name)))
+    geom_text_repel(data = d_plot_rank_location %>% filter(label == TRUE), 
+                    aes(label = name),
+                    max.overlaps = 20))
 
 ggsave(paste0(fig_dir_main_subpanels, "Fig_4a_subpanel_abnd_stool_v_devices.pdf"), plot = main_4a)
 
@@ -314,18 +322,18 @@ btwn_subj_pearson <- pearson_df %>%
 
 test <- bind_rows(within_subj_pearson, btwn_subj_pearson) %>%
   mutate(Location_in = ifelse(Location_in == "Device", "Devices", Location_in), 
-         within = factor(within, levels = c("within Subjects", "between Subjects"), labels = c("Within subjects", "Between subjects"))) 
+         within = factor(within, levels = c("within Subjects", "between Subjects"), labels = c("Within subject", "Across subjects"))) 
 
-(main_4d <- ggplot(data = test, aes(x = median, y = Location_in, color = Location_in))+
-    geom_boxplot(alpha = 0.7, outlier.shape = NA)+
+(main_4d <- ggplot(data = test, aes(x = 1-median, y = Location_in, color = Location_in, fill = Location_in))+
+    geom_boxplot(alpha = 0.5, outlier.shape = NA)+
     geom_jitter(position = position_jitterdodge(jitter.width = 0.4), 
-                size = 2, 
-                pch = 16,
-                alpha = 0.3)+
+                shape = 16,
+                alpha = 0.8, size = 2)+
     facet_grid(within~.)+
     # scale_fill_manual(values = CapAndStoolColors, guide = "none") + 
     scale_color_manual(values = CapAndStoolColors, guide = "none") +
-    labs(x = "Median Pearson Correlation", y = "") +
+    scale_fill_manual(values = CapAndStoolColors, guide = "none") +
+    labs(x = "1 - [Median Pearson Correlation]", y = "") +
     stat_compare_means(method='wilcox', 
                        comparisons = list(c("Stool", "Devices")),
                        label = "p.signif")) 
@@ -359,18 +367,9 @@ pca_res <- data.frame(p$rotated) %>%
   left_join(data.frame(p$metadata) %>%
               rownames_to_column, by = "rowname") %>%
   mutate(poi = factor(poi, levels = c("Device15", "Stool15", "else")))
-# (main_4c <- biplot(p,
-#              colby = 'location',
-#              hline = 0, vline = 0,
-#              legendPosition = 'none',
-#              lab = NULL,
-#              colkey  = CapAndStoolColors,
-#              xlab = expression("Principal component 1\n(4.6% variation)"),
-#              xlabvjust = 1,
-#              ylab = expression("Principal component 2\n(2.7% variation)")))
 
 (main_4c <- ggplot(pca_res,
-                   aes(x = PC1, y = PC2, color = location)) + 
+                   aes(x = PC1, y = -PC2, color = location)) + 
     geom_point(size = 2, shape = 16, alpha = 0.75) + 
     scale_color_manual(values = CapAndStoolColors, guide = "none") + 
     labs(x = expression("Principal component 1 (4.6% variation)"),
@@ -384,21 +383,9 @@ pca_res <- data.frame(p$rotated) %>%
 ggsave(paste0(fig_dir_main_subpanels, "Fig_4c_subpanel_pca.pdf"), plot = main_4c)
 
 ## Figure 4e, Subject 15
-
-# (main_4e <- biplot(p,
-#              colby = 'poi',
-#              hline = 0, vline = 0,
-#              legendPosition = 'none',
-#              lab = NULL,
-#              xlab = "Principal component 1 (4.6% variation)",
-#              ylab = "Principal component 2 (2.7% variation)",
-#              colkey  = c('Device15'="#2364AA", 'Stool15'="#743C2F", 'else'='grey')))
-
 (main_4e <- ggplot(pca_res,
-                   aes(x = PC1, y = PC2, color = poi, alpha = poi)) + 
+                   aes(x = PC1, y = -PC2, color = poi, alpha = poi)) + 
     geom_point(size = 2, shape = 16) + 
-    geom_hline(yintercept = 0, linetype = "dashed") +
-    geom_vline(xintercept = 0, linetype = "dashed") +
     scale_color_manual(values = c(CapAndStoolColors, "grey"),  guide = "none") +
     scale_alpha_manual(values = c(0.9, 0.9, 0.6), guide = "none") + 
     labs(x = expression("Principal component 1 (4.6% variation)"),
@@ -445,37 +432,24 @@ meta %>%
 d_imputed_top500$completeObs[,rownames(meta_red_top500)] -> d_imputed_top500_sorted
 
 p_top500 <- pca(d_imputed_top500_sorted, meta_red_top500)
-
+var_exp_top500 <- round(p_top500$variance[1:2], 2)
 pca_res_top500 <- data.frame(p_top500$rotated) %>%
   rownames_to_column() %>%
   left_join(data.frame(p_top500$metadata) %>%
               rownames_to_column, by = "rowname")
 
 (ed_7e <- ggplot(pca_res_top500,
-                 aes(x = PC1, y = PC2, color = location)) + 
+                 aes(x = PC1, y = -PC2, color = location)) + 
     geom_point(size = 2, shape = 16, alpha = 0.75) + 
-    geom_hline(yintercept = 0, linetype = "dashed") +
-    geom_vline(xintercept = 0, linetype = "dashed") +
     scale_color_manual(values = CapAndStoolColors, guide = "none") + 
-    labs(x = expression("Principal component 1 (8.02% variation)"),
-         y = expression("Principal component 2\n (4.99% variation)"), 
+    labs(x = paste0("Principal component 1 (",var_exp_top500[1], "% variation)"),
+         y = paste0("Principal component 2 (", var_exp_top500[2], "% variation)"), 
          title = "Top 500 proteins") +
-    # labs(x = "Principal component 1 (4.6% variation)", 
-    # y = "Principal component 2 (2.7% variation)") +
-    coord_fixed(ratio = 4.99/8.02) +
+    coord_fixed(ratio = var_exp_top500[2]/var_exp_top500[1]) +
     theme(plot.margin = margin(0.5, 0.5, 0.5, 1, "cm"),
           plot.title = element_text(hjust = 0.5, face = "bold")))
 
-ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7e_pca_top500.pdf"), plot = ed_7e)
-
-# biplot(p_top500,
-#        colby = 'location',
-#        hline = 0, vline = 0,
-#        legendPosition = 'right',
-#        lab = NULL,
-#        encircle = TRUE,
-#        encircleFill = TRUE,
-#        colkey  = c('Device'="#440154FF", 'Stool'="#FDE725FF"))
+ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7e_pca_top500.pdf"), plot = ed_7e, height = 5, width = 5)
 
 ## Extended Data Figure 7f, PCA on not normalized data
 d_filtered %>%
@@ -520,39 +494,27 @@ meta %>%
 d_imputed_nn$completeObs[,rownames(meta_red_nn)] -> d_imputed_nn_sorted
 
 p_nn <- pca(d_imputed_nn_sorted, meta_red_nn)
-
+var_exp_nn <- round(p_nn$variance[1:2], 2)
 pca_res_nn <- data.frame(p_nn$rotated) %>%
   rownames_to_column() %>%
   left_join(data.frame(p_nn$metadata) %>%
               rownames_to_column, by = "rowname")
 
 (ed_7f <- ggplot(pca_res_nn,
-                 aes(x = PC1, y = PC2, color = location)) + 
+                 aes(x = PC1, y = -PC2, color = location)) + 
     geom_point(size = 2, shape = 16, alpha = 0.75) + 
-    geom_hline(yintercept = 0, linetype = "dashed") +
-    geom_vline(xintercept = 0, linetype = "dashed") +
     scale_color_manual(values = CapAndStoolColors, guide = "none") + 
-    labs(x = expression("Principal component 1 (44.69% variation)"),
-         y = expression("Principal component 2\n (1.90% variation)"), 
+    labs(x = paste0("Principal component 1 (",var_exp_nn[1], "% variation)"),
+         y = paste0("Principal component 1 (",var_exp_nn[2], "% variation)"), 
          title = "Not normalized data") +
-    # labs(x = "Principal component 1 (4.6% variation)", 
-    # y = "Principal component 2 (2.7% variation)") +
-    coord_fixed(ratio = 1.9/44.69) +
+    # coord_fixed(ratio = 1.9/44.69) +
     theme(plot.margin = margin(0.5, 0.5, 0.5, 1, "cm"),
           plot.title = element_text(hjust = 0.5, 
                                     face = "bold")))
 
-ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7f_pca_not_normalized.pdf"), plot = ed_7f, height = 3, width = 26)
+ggsave(paste0(fig_dir_ed_subpanels, "ED_Fig_7f_pca_not_normalized.pdf"), plot = ed_7f, height = 5, width = 5)
 
-# biplot(p_nn,
-#        colby = 'location',
-#        hline = 0, vline = 0,
-#        legendPosition = 'right',
-#        lab = NULL,
-#        encircle = TRUE,
-#        encircleFill = TRUE,
-#        colkey  = c('Device'="#440154FF", 'Stool'="#FDE725FF"))
-# 
+
 ## Figure 4B, Volcano plot
 meta_red_top500 %>%
   rownames_to_column("TubeID") -> meta_red_exp
@@ -573,7 +535,11 @@ d_limma_out<- topTable(fit, number = Inf, confint = TRUE, coef = 2, adjust.metho
                           column="ENSEMBL",
                           keytype="UNIPROT",
                           multiVals="first"),
-         color = factor(ifelse(adj.P.Val < 0.05 & logFC < -1, "devices", ifelse(adj.P.Val < 0.05 & logFC > 1, "stool", "none")), levels = c("devices", "stool", "none")))
+         color = factor(ifelse(adj.P.Val < 0.05 & logFC < -1, "devices", ifelse(adj.P.Val < 0.05 & logFC > 1, "stool", "none")), 
+                        levels = c("devices", "stool", "none"))) %>%
+  left_join(d %>%
+              select(`Protein IDs`, `Gene names`), by = c("Uniprot" = "Protein IDs")) %>%
+  mutate(label = ifelse(!is.na(SYMBOL), SYMBOL, ifelse(!is.na(`Gene names`), `Gene names`, "NNN")))
 
 (main_4b <- ggplot() +
     geom_point(data = d_limma_out, aes(x = logFC, y = -log10(adj.P.Val), color = color, alpha = color)) +
@@ -584,7 +550,10 @@ d_limma_out<- topTable(fit, number = Inf, confint = TRUE, coef = 2, adjust.metho
     scale_color_manual(values = c(CapAndStoolColors,"grey65"), guide = "none") +
     scale_alpha_manual(values = c(0.9, 0.9, 0.5), guide = "none") +
     scale_x_continuous(breaks = c(-5:3)) +
-    geom_text_repel(data = d_limma_out %>% filter(adj.P.Val < 0.05, abs(logFC) > 1), aes(x = logFC, y = -log10(adj.P.Val), label = SYMBOL)) +
+    geom_text_repel(data = d_limma_out %>% slice_max(logFC, n = 8), 
+                    aes(x = logFC, y = -log10(adj.P.Val), label = label)) +
+    geom_text_repel(data = d_limma_out %>% slice_min(logFC, n = 8), 
+                    aes(x = logFC, y = -log10(adj.P.Val), label = label)) +
     geom_hline(yintercept = -log10(0.05), lty = "dotted")+
     geom_vline(xintercept = -1, lty = "dotted")+
     geom_vline(xintercept = 1, lty = "dotted"))
@@ -707,26 +676,36 @@ protein_similarity <- pearson_df %>%
   filter(!is.na(dist)) # filter out samples without Canberra distance calculated - these are samples with poor 16S sequencing
 
 
-# (main_4f <- ggplot(protein_similarity, 
-#                    aes(x = dist, y = value, color = location_1)) + 
-#     geom_point(alpha = 0.6) +
-#     scale_x_reverse() + 
-#     scale_color_manual(values = CapAndStoolColors, guide = "none") + 
-#     geom_smooth(method = "lm", fill = "black", alpha = 1) +
-#     labs(x = "Microbiota Canberra distance between samples",
-#          y = "Correlation between host proteomes"))
-
-
 (main_4f <- ggplot(protein_similarity, 
-                            aes(x = 1-dist, y = value, color = location_1)) + 
-  geom_density2d(bins = 55, alpha = 0.5) + 
+                            aes(x = dist, y = 1-value, color = location_1)) + 
+  geom_density2d(bins = 60, alpha = 0.5) + 
   scale_color_manual(values = CapAndStoolColors, guide = "none") + 
-  labs(x = "1-[microbiota Canberra distance between samples]", y = "Pearson correlation between host proteoms")
-)
+  labs(x = "Microbiota Canberra distance between samples", y = "1-[Pearson correlation between host proteoms]"))
 
 ggsave(paste0(fig_dir_main_subpanels, "Fig_4f_subpanel_pearson_correlation_by_Canberra_dist.pdf"), plot = main_4f)
 
 
-## Make final Figure 4
+#----------------------------
+# Figure 4
+#----------------------------
+
+plot_grid(plot_grid(main_4a, main_4b, labels = c("a", "b"), label_size = 16, ncol = 2), 
+          plot_grid(main_4c, main_4d, labels = c("c", "d"), label_size = 16, ncol = 2), 
+          plot_grid(main_4e, main_4f, labels = c("e", "f"), label_size = 16, ncol = 2), nrow = 3)
+
+ggsave(paste0(fig_dir, "Figure_4.pdf"), width = 10, height = 14)
+
+
+
+
+#----------------------------
+# Extended Data Figure 7
+#----------------------------
+plot_grid(plot_grid(ed_7a, ed_7b, ed_7c, labels = c("a", "b", "c"), label_size = 16, ncol = 3, rel_widths = c(1,0.7, 0.7)), 
+          plot_grid(ed_7d, ed_7e, labels = c("d", "e"), label_size = 16, ncol = 2), 
+          plot_grid(ed_7f, ed_7g, labels = c("f", "g"), label_size = 16, ncol = 2), nrow = 3, rel_heights = c(0.6, 1, 1))
+
+ggsave(paste0(fig_dir, "ED_Figure_7.pdf"), width = 10, height = 14)
+
 
 # Make final Extended Data Figure 7

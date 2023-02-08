@@ -27,13 +27,14 @@ a_ratio <- image_info(a_img)$height/image_info(a_img)$width
 #Read in sample data
 df_samples <- readRDS(sample_data) %>%
   dplyr::rename(transit_time = Hours_in_body) %>%
-  mutate(Subject = factor(Subject))
+  mutate(Subject = factor(Subject)) %>%
+  filter(Subject != "Control", location == "Capsule", !is.na(Time_of_day), Set %in% c("2","3","4","5"), duplicate_16s == F, duplicate_meta == F)
+
 
 df_samples_plot <- df_samples %>%
-  ungroup() %>%
-  filter(Subject != "Control", location == "Capsule", !is.na(Time_of_day), Set %in% c("2","3","4","5")) %>%
   mutate(Subject = fct_reorder(Subject, transit_time, .fun = 'median', na.rm = T),
-         Time_of_day = factor(Time_of_day, levels = c("After lunch", "After dinner"))) 
+         Time_of_day = factor(Time_of_day, levels = c("After lunch", "After dinner")))
+
 
 ## Summary statistics of transit time for capsules in Sets 2-5, taken 3h post-meal as directed.
 ## We do not include capsules from Set 1 because these were taken at any time of day that participants desired, including with a meal.
@@ -86,11 +87,11 @@ df <- df_samples %>%
 
 
 (pre_capsule_foods <- ggplot(df %>% 
-                                filter(!location %in% c("Stool", "Saliva", "Control"), 
-                                       !is.na(Food_pre_post), 
-                                       Set %in% c("2","3","4","5"),
-                                       Food_pre_post == "Pre-capsule"), 
-                              aes(x = Food_01, y = transit_time)) +
+                               filter(!location %in% c("Stool", "Saliva", "Control"), 
+                                      !is.na(Food_pre_post), 
+                                      Set %in% c("2","3","4","5"),
+                                      Food_pre_post == "Pre-capsule"), 
+                             aes(x = Food_01, y = transit_time)) +
     geom_boxplot(outlier.shape = NA) + 
     geom_jitter(aes(alpha = Food_type_sig_pre, color = Time_of_day), width = 0.2, shape = 21) + 
     scale_alpha_manual(values = c(0.4, 1), guide = "none") +
@@ -150,5 +151,5 @@ ggsave(filename = paste0(fig_dir_ed_subpanels, "ED_Fig_2c_transit_time_by_pre_fo
 ggsave(filename = paste0(fig_dir_ed_subpanels, "ED_Fig_2d_transit_time_by_post_foods.pdf"), plot = post_capsule_foods)
 
 
-plot_grid(transit_time_bySubj, pre_capsule_foods, post_capsule_foods, labels = "AUTO", label_size = 16, nrow = 3, rel_heights = c(1, 1.15, 1.15))
-ggsave(filename = paste0(fig_dir, "ExtendedData_Figure_2_transit.pdf"), width = 8, height = 13)
+plot_grid(a, transit_time_bySubj, pre_capsule_foods, post_capsule_foods, labels = "auto", label_size = 16, nrow = 3, rel_heights = c(1, 1.15, 1.15))
+ggsave(filename = paste0(fig_dir, "ED_Figure_2.pdf"), width = 16, height = 14)
