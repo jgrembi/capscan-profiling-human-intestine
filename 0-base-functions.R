@@ -305,64 +305,6 @@ unique_genes_per_sample <- function(df){
 
 
 
-# tip agglomeration based on heirarchial clustering of the phylogenetic distance
-clust_tip_glom <- function (physeq, h = 0.2, hcfun = cluster::agnes, ...) {
-  dd <- as.dist(ape::cophenetic.phylo(phy_tree(physeq)))
-  psclust <- cutree(as.hclust(hcfun(dd, ...)), h = h)
-  return(psclust)
-}
-
-merge_tips <- function(physeq, psclust) {
-  taxtab_collapse <- physeq@tax_table %>%
-    as.data.frame() %>%
-    rownames_to_column("SeqName") %>%
-    select(SeqName, Genus, Species) %>%
-    mutate(Tip = paste0("Tip", psclust)) %>%
-    group_by(Tip) %>%
-    mutate( 
-      Org = paste(Genus, Species),
-      Org = ifelse(is.na(Genus) & is.na(Species), NA, Org)
-    ) %>%
-    dplyr::summarise(
-      OrgIncluded = paste0(unique(Org[!is.na(Org)]), collapse = "/"),
-      SeqIncluded = paste0(SeqName[!is.na(SeqName)], collapse = "/"),
-      Freq = n()
-    ) %>%
-    mutate(
-      OrgIncluded = ifelse(OrgIncluded == "", "Unknown", OrgIncluded)
-    )
-  physeq@tax_table <- tax_table(
-    cbind(Tip = paste0("Tip", psclust), physeq@tax_table[, 1:7]))
-  freqtab <- data.frame(table(psclust))
-  freqtab$Tip <-  paste0("Tip", freqtab$pclust)
-  cliques <- freqtab %>% filter(Freq > 1) %>% 
-    .[["psclust"]] %>% as.character()
-  for (i in cliques) {
-    physeq <- merge_taxa(physeq, 
-                         eqtaxa = names(psclust)[psclust == i])
-  }
-  taxtab <- physeq@tax_table %>%
-    as.data.frame() %>%
-    left_join(taxtab_collapse) %>%
-    column_to_rownames("Tip")
-  physeq@tax_table <- tax_table(as(taxtab, "matrix"))
-  taxa_names(physeq) <- rownames(taxtab)
-  return(physeq)
-} 
-
-
-# filter out taxa not present in at least 'thresh' distinct subjects.
-filter_subject_prevalence <- function(ps, thresh = 2) {
-  smdata <- data.frame(ps@sam_data)
-  seqtab <- t(as(ps@otu_table, "matrix"))
-  
-  subjects_prevalence <- sapply(1:ntaxa(ps), function(i) {
-    subj.present <- unique(smdata[seqtab[i, ] > 0, "Subject"])
-    length(unique(subj.present))
-  })
-  ps <- prune_taxa(rownames(seqtab)[subjects_prevalence >= thresh], ps)
-  return(ps)
-}
 
 # limma DA
 limma_fit <- function(seqtab, smpdata, 
@@ -560,181 +502,12 @@ plot_percent <- function(DF, sbj_markersize = 3, smp_markersize = 1.5){
 }
 
 
-#--------------------------------------------
-# Functions for correlating ba concentrations with ASVs
-#--------------------------------------------
-
-
-plot_ba_corr <- function(bile_acid,df2plot){
-
-df2plot$bile_acid<-df2plot[,bile_acid]
-df2plot <- df2plot %>% filter(bile_acid > 1) %>% filter(Abundance > 0)
-# split the data by ASV
-B <- split(df2plot, df2plot$OTU)
-    
-# Calculate the correlation in all data.frames using lapply 
-M <- lapply(B, function(x) cor.test(x$Abundance, log10(x$bile_acid), method='pearson'))
-            
-# Get ASVs that are significant
-pvals<-lapply(M, function(x) x$p.value)
-pvals<-as.data.frame(pvals)
-pvals.corrected<-p.adjust(pvals,method="hochberg") %>% as.data.frame() %>% filter(. < 0.05)
-sig<-rownames(pvals.corrected)
-
-# Slope positive for conjugated
-#r<-lapply(M, function(x) x$estimate)         
-#filtered<-data.frame(r) %>% t() %>% as.data.frame() %>% filter(cor > 0)
-#sig.r<-rownames(filtered)         
-    
-# Filter dataframe to only include significant ASVs              
-df2plot.filt <- df2plot %>%
-    filter(OTU %in% sig) #%>%
-#    filter(OTU %in% sig.r)
-
-if (dim(df2plot.filt)[1] > 0) {
-    a<-ggplot(df2plot.filt, aes(x=log10(bile_acid), y=(Abundance))) + 
-        geom_point()  + geom_smooth(method=lm, se=FALSE) +
-        labs(title=bile_acid,y=expression('log'[2]*' ASV count'), x=paste0(expression('log'[10]*' concentration of '),bile_acid)) +
-        stat_cor(method = "pearson") +
-        facet_wrap(~Family+Genus+OTU)+
-        theme(strip.text = element_text(size=12),
-        axis.text = element_text(size = 12)) 
-    return(a)
-} else {return(NULL)}
-              
-}
-   
-ba_corr_dataframe <- function(bile_acid,df2plot){
-
-df2plot$bile_acid<-df2plot[,bile_acid]
-df2plot <- df2plot %>% filter(bile_acid > 1)  %>% filter(Abundance > 0)
-# split the data by ASV
-B <- split(df2plot, df2plot$OTU)
-    
-# Calculate the correlation in all data.frames using lapply 
-M <- lapply(B, function(x) cor.test(x$Abundance, log10(x$bile_acid), method='pearson'))
-            
-# Get ASVs that are significant
-pvals<-lapply(M, function(x) x$p.value)
-pvals<-as.data.frame(pvals)
-pvals.corrected<-p.adjust(pvals,method="hochberg") %>% as.data.frame() %>% filter(. < 0.05)
-sig<-rownames(pvals.corrected)
-sig
-# Slope 
-r<-lapply(M, function(x) x$estimate)       
-filtered<-data.frame(r) %>% t() %>% as.data.frame() 
-filtered$OTU<-rownames(filtered)
-sig.r <- filtered %>% filter(OTU %in% sig)
-
-# Filter dataframe to only include significant ASVs              
-df2plot.filt <- df2plot %>%
-    filter(OTU %in% sig) %>%
-    select(OTU, Phylum, Family, Genus, Species) %>%
-    unique() %>%
-    mutate(BA = bile_acid) %>%
-    left_join(.,sig.r, by='OTU')
-
-if (dim(df2plot.filt)[1] > 0) {
-    return(df2plot.filt)
-} else {return(NULL)}
-              
-}
-  
-
-plot_ba_corr_merge <- function(bile_acid,df2plot){
-
-
-tmp<-df2plot.final %>% select(bile_acid) %>% mutate(bile_acid=rowSums(.))
-df2plot$bile_acid<-tmp$bile_acid
-
-
-df2plot <- df2plot %>% filter(bile_acid > 1)  %>% filter(Abundance > 0)
-    
-# split the data by ASV
-B <- split(df2plot, df2plot$OTU)
-    
-# Calculate the correlation in all data.frames using lapply 
-M <- lapply(B, function(x) cor.test(x$Abundance, log10(x$bile_acid), method='pearson'))
-            
-# Get ASVs that are significant
-pvals<-lapply(M, function(x) x$p.value)
-pvals<-as.data.frame(pvals)
-pvals.corrected<-p.adjust(pvals,method="hochberg") %>% as.data.frame() %>% filter(. < 0.05)
-sig<-rownames(pvals.corrected)
-
-# Slope positive for conjugated
-#r<-lapply(M, function(x) x$estimate)         
-#filtered<-data.frame(r) %>% t() %>% as.data.frame() %>% filter(cor > 0)
-#sig.r<-rownames(filtered)         
-    
-# Filter dataframe to only include significant ASVs              
-df2plot.filt <- df2plot %>%
-    filter(OTU %in% sig) #%>%
-#    filter(OTU %in% sig.r)
-
-if (dim(df2plot.filt)[1] > 0) {
-    a<-ggplot(df2plot.filt, aes(x=log10(bile_acid), y=(Abundance))) + 
-        geom_point()  + geom_smooth(method=lm, se=FALSE) +
-        labs(title=paste(bile_acid, collapse=' and '),y=expression('log'[2]*' ASV count'), x=paste0(expression('log'[10]*' concentration of '),bile_acid)) +
-        stat_cor(method = "pearson") +
-        facet_wrap(~Family+Genus+OTU)+
-        theme(strip.text = element_text(size=12),
-        axis.text = element_text(size = 12)) 
-    return(a)
-} else {return(NULL)}
-              
-}
-   
-
-ba_corr_dataframe_merge <- function(bile_acid,df2plot){
-
-tmp<-df2plot.final %>% select(bile_acid) %>% mutate(bile_acid=rowSums(.)) 
-df2plot$bile_acid<-tmp$bile_acid
-
-
-df2plot <- df2plot %>% filter(bile_acid > 1, Abundance > 0)
-# split the data by ASV
-B <- split(df2plot, df2plot$OTU)
-    
-# Calculate the correlation in all data.frames using lapply 
-M <- lapply(B, function(x) cor.test(x$Abundance, log10(x$bile_acid), method='pearson'))
-            
-# Get ASVs that are significant
-pvals<-lapply(M, function(x) x$p.value)
-pvals<-as.data.frame(pvals)
-pvals.corrected<-p.adjust(pvals,method="hochberg") %>% as.data.frame() %>% filter(. < 0.05)
-sig<-rownames(pvals.corrected)
-
-# Slope 
-r<-lapply(M, function(x) x$estimate)       
-filtered<-data.frame(r) %>% t() %>% as.data.frame() 
-filtered$OTU<-rownames(filtered)
-sig.r <- filtered %>% filter(OTU %in% sig)
-          
-new_name<-paste(bile_acid, collapse=' and ')
-
-# Filter dataframe to only include significant ASVs              
-df2plot.filt <- df2plot %>%
-    filter(OTU %in% sig) %>%
-    select(OTU, Phylum, Family, Genus, Species) %>%
-    unique() %>%
-    mutate(BA = new_name) %>%
-    left_join(.,sig.r, by='OTU')
-
-if (dim(df2plot.filt)[1] > 0) {
-    return(df2plot.filt)
-} else {return(NULL)}
-              
-}
-
-
-
 
 ## custom function to rarefy to a subject's minimum sequencing depth, 
 ## with functionality to record repeated iterations (i)
 ## This function is used in 'ExtendedData_Figure_3.R'
 bySubj_rarefy <- function(s, i, phyloseq_object) {
-   s = "1"
+   # s = "1"
   ps_subj <- phyloseq_object %>%
     prune_samples(phyloseq_object@sam_data$Subject == s, .)
   
@@ -776,5 +549,76 @@ bySubj_rarefy <- function(s, i, phyloseq_object) {
 
 
 
+#--------------------------------------------
+# Functions for correlating ASV abundance with other variables
+# e.g. bile acid concentrations, AMR gene content, CAZyme gene content
+#--------------------------------------------
+
+###################################
+# get ASV correlations function 
+###################################
+# Documentation:          asv_corr
+# Usage:                  asv_corr(df, location_test = "Capsule", cor_variable = "Glycocholic.acid", include_0_abundance = F)
+# Description:            looks for Spearman correlations between ASV abundance and cor_variable provided.
+# Args/Options: 
+#   df:                   a data.frame in long format containing one row for each unique ASV in each sample, and the corresponding cor_variable for that sample
+#   location_test:        indicates which location correlations are to be determined. Accepted inputs are "Capsule", "Devices", or "Stool"
+#   cor_variable:         a string indicating the name of the variable in df to evaluate correlations with ASV abundance
+#   include_0_abundance:  Default values is FALSE. A logical argument specifying if zero abundance ASVs should be removed before correaltions are calculated. This is desireable in some instances as zeros can be due to various reasons  
+# Returns:                A data.frame containing the ASV name, Spearman's rho, p-value and adjusted p-value. 
+#                         There is one row for each ASV included in the original df provided. 
+#                         Adjusted p-value is calculated using Benjanimi-Hochberg correction over all ASVs included in the original dataframe
+# Output:                 none
+asv_corr <- function(df, location_test = c("Capsule", "Devices", "Stool"), cor_variable, include_0_abundance = F){
+  
+  df <- df %>%
+    filter(location == location_test)
+  
+  if(!include_0_abundance) df <- df %>% filter(Abundance > 0)
+  # split the data by ASV
+  B <- split(df, df$ASV)
+  # Calculate the correlation in all data.frames using lapply 
+  if(grepl("acid", cor_variable)) {
+    M <- lapply(B, function(x) cor.test(x$Abundance, log10(x[,cor_variable]), method='spearman')) 
+  } else {
+    M <- lapply(B, function(x) cor.test(x$Abundance, x[,cor_variable], method='spearman')) 
+  }
+  
+  cor_res <- get_pval_and_rho(M) %>%
+    mutate(location = location_test)
+  
+  return(cor_res)
+}
+
+###################################
+# get rho and p-values function 
+###################################
+# Documentation:    get_pval_and_rho
+# Usage:            get_pval_and_rho(cor_test_res)  This is an internal function used iwithn the asv_corr() function
+# Description:      makes data.frame of Spearman's rho and p-values between ASV abundance and a given variable.
+# Args/Options: 
+#   cor_test_res:   a list obtained internally in the asv_cor() function from splitting the dataset on ASVs and calculating the correlation between each ASV and the cor_variable. 
+# Returns:          A data.frame containing the ASV name, Spearman's rho, p-value and adjusted p-value. 
+#                         There is one row for each ASV included in the original df provided to asv_corr(). 
+#                         Adjusted p-value is calculated using Benjanimi-Hochberg correction over all ASVs included in the original dataframe
+# Output:                 none
+
+get_pval_and_rho <- function(cor_test_res){
+  # Get adjusted p-values
+  pvals <- lapply(cor_test_res, function(x) x$p.value) %>%
+    data.frame() %>%
+    t() %>%
+    data.frame(pvalue = .) %>%
+    mutate(adj_pval = p.adjust(pvalue, method="BH")) %>%
+    rownames_to_column("ASV")
+  # Get Spearman rho values
+  r <- lapply(cor_test_res, function(x) x$estimate) %>% 
+    data.frame() %>% 
+    t() %>% 
+    data.frame() %>% 
+    rownames_to_column("ASV")
+  
+  return(left_join(pvals, r, by = "ASV"))
+}
 
 

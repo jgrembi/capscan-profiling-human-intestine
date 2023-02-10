@@ -11,11 +11,29 @@ rm(list=ls())
 source(paste0(here::here(), "/0-config.R"))
 
 # Only look at data of samples from Sets 2,3,4,5 that meet 16S cut-offs & bile acid cut-offs
-ps.bs.raw <- readRDS(phyloseq_bilesalt) %>% subset_samples(., drop_16s == F)
-ps.bs<-subset_samples(ps.bs.raw, Set %in% c('2','3','4','5','Stool'))
-ps.bs@sam_data$Type <- gsub("Capsule", "Device", ps.bs@sam_data$Type)
+# ps.bs.raw <- readRDS(phyloseq_bilesalt) %>% subset_samples(., drop_16s == F)
+# ps.bs<-subset_samples(ps.bs.raw, Set %in% c('2','3','4','5','Stool'))
+# ps.bs@sam_data$Type <- gsub("Capsule", "Device", ps.bs@sam_data$Type)
+
+bs <- read.csv(paste0(data_dir, "bile_salts_wAAconjugates.csv")) %>%
+  dplyr::rename(Super = Sample.ID) %>%
+  select(-(Subject.Number:Capsule.Type)) %>%
+  mutate(Super = as.character(Super))
+  
+df_samples <- readRDS(paste0(data_dir, "sample_data.RDS")) %>%
+  mutate(Type = gsub("Capsule", "Device", Type), 
+         Super = ifelse(Type == "Stool", Main, Super))
+
+df_bs <- bs %>%
+  left_join(df_samples %>%
+              filter(!duplicate_16s, !duplicate_meta) %>%
+              select(DeviceID:Super, location, drop_16s), by = "Super") %>%
+  unique() %>%
+  filter(Set %in% c('2','3','4','5','Stool')) #%>% # Remove Set 1 & additional microbiota reproducibility samples
 
 
+table(df_bs$location)
+table(df_bs$Type)
 #######################################
 # Figure 5a - Bile acid deconjugation/dehyrdroxylation overview
 #######################################
@@ -37,17 +55,18 @@ a_ratio <- image_info(a_img)$height/image_info(a_img)$width
 # Secondary: 'Deoxycholic.acid','Lithocholic.acid','Ursodeoxycholic.acid'
 # Secondary Conjugated:'Glycodeoxycholic.acid','Taurodeoxycholic.acid','Glycolithocholic.acid','Taurolithocholic.acid','Glycoursodeoxycholic.acid','Tauroursodeoxycholic.acid','Glycohyodeoxycholic.acid'
 
-df.ratios <- data.frame(sample_data(ps.bs)) %>%
+df.ratios <- df_bs %>%
+  mutate(Location = ifelse(Type %in% 'Stool','Stool','Device')) %>%
   mutate(primarySum = Cholic.acid + Chenodeoxycholic.acid) %>%
   mutate(priConjSum = Glycocholic.acid+Taurocholic.acid+Glycochenodeoxycholic.acid+Taurochenodeoxycholic.acid+Tauro.a.Muricholic.acid) %>%
   mutate(secondarySum = Deoxycholic.acid+Lithocholic.acid+Ursodeoxycholic.acid) %>%
   mutate(secConjSum = Glycodeoxycholic.acid+Taurodeoxycholic.acid+Glycolithocholic.acid+Taurolithocholic.acid+Glycoursodeoxycholic.acid+Tauroursodeoxycholic.acid+Glycohyodeoxycholic.acid) %>%
   mutate(microConj = Phenylalanocholic.acid+Leucholic.acid+Tyrosocholic.acid+Ala.TriHydroxylated.BA+Arg.Dihydroxylated.BA+Arg.TriHydroxylated.BA+Asn.Dihydroxylated.BA.1+Asn.Dihydroxylated.BA.2+Asn.TriHydroxylated.BA+Cys.Dihydroxylated.BA+Cys.TriHydroxylated.BA+Gln.Dihydroxylated.BA
-         +Gln.TriHydroxylated.BA+Glu.Dihydroxylated.BA+Glu.TriHydroxylated.BA+His.TriHydroxylated.BA+Lys.Dihydroxylated.BA+Lys.TriHydroxylated.BA+Met.TriHydroxylated.BA+Phe.Dihydroxylated.BA+Ser.Dihydroxylated.BA+Ser.TriHydroxylated.BA+Trp.TriHydroxylated.BA+Tyr.Dihydroxylated.BA)
+         +Gln.TriHydroxylated.BA+Glu.Dihydroxylated.BA+Glu.TriHydroxylated.BA+His.TriHydroxylated.BA+Lys.Dihydroxylated.BA+Lys.TriHydroxylated.BA+Met.TriHydroxylated.BA+Phe.Dihydroxylated.BA+Ser.Dihydroxylated.BA+Ser.TriHydroxylated.BA+Trp.TriHydroxylated.BA+Tyr.Dihydroxylated.BA,
+         total_abundances =(priConjSum+secConjSum+primarySum+secondarySum+microConj))
 
 df2plot_b <- df.ratios %>%
-  mutate(Location = ifelse(Type %in% 'Stool','Stool','Device'),
-         total_bileAcids = log10(priConjSum+secConjSum+primarySum+secondarySum+microConj))
+  mutate(total_bileAcids = log10(total_abundances))
 
 my_comparisons_overall <- list(c('Device','Stool'))
 my_comparisons <- list(c('Device 1','Device 4'),c('Device 4','Stool'),c('Device 1','Stool'))
@@ -75,7 +94,6 @@ ggsave(paste0(fig_dir_main_subpanels,'Fig_5b_subpanel_boxplot_abundance_allTypes
 #######################################
 # Figure 5c - Mean realtive abundance of bile acids
 #######################################
-
 ba.levels <- c('Cholic.acid','Chenodeoxycholic.acid','Glycocholic.acid','Taurocholic.acid','Glycochenodeoxycholic.acid','Taurochenodeoxycholic.acid','Tauro.a.Muricholic.acid','Deoxycholic.acid','Lithocholic.acid','Ursodeoxycholic.acid','Glycodeoxycholic.acid','Taurodeoxycholic.acid','Glycolithocholic.acid','Taurolithocholic.acid','Glycoursodeoxycholic.acid','Tauroursodeoxycholic.acid','Glycohyodeoxycholic.acid','microConj')
 
 # Colors
@@ -85,8 +103,8 @@ pal<-c('#8F2D14','#C43E1C',
        '#2D625C','#3A7E77','#479A91','#57B2A7','#73BFB6','#8FCCC5','#ABD8D3',
        '#090A0B')
 
-df<- data.frame(df.ratios) %>% 
-  melt(id.vars = c('Main','Subject','pH','Type','Set','total_abundances'), 
+df<- df.ratios %>% 
+  melt(id.vars = c('Main','Subject','pH','Type','Set','Location', 'total_abundances'), 
        measure.vars = c("Tauro.a.Muricholic.acid", "Tauroursodeoxycholic.acid","Taurocholic.acid",
                         "Glycoursodeoxycholic.acid","Glycohyodeoxycholic.acid",'Glycocholic.acid',
                         'Taurochenodeoxycholic.acid','Taurodeoxycholic.acid','Cholic.acid','Ursodeoxycholic.acid',
@@ -95,9 +113,8 @@ df<- data.frame(df.ratios) %>%
                         'microConj')) %>%
   #'Tyrosocholic.acid','Phenylalanocholic.acid','Leucholic.acid', 'Ala.TriHydroxylated.BA','Arg.Dihydroxylated.BA','Arg.TriHydroxylated.BA','Asn.Dihydroxylated.BA.1','Asn.Dihydroxylated.BA.2','Asn.TriHydroxylated.BA','Cys.Dihydroxylated.BA','Cys.TriHydroxylated.BA','Gln.Dihydroxylated.BA',
   #'Gln.TriHydroxylated.BA','Glu.Dihydroxylated.BA','Glu.TriHydroxylated.BA','His.TriHydroxylated.BA','Lys.Dihydroxylated.BA','Lys.TriHydroxylated.BA','Met.TriHydroxylated.BA','Phe.Dihydroxylated.BA','Ser.Dihydroxylated.BA','Ser.TriHydroxylated.BA','Trp.TriHydroxylated.BA','Tyr.Dihydroxylated.BA')) %>%
-  mutate(variable = as.character(variable))%>%
+  mutate(variable = as.character(variable)) %>%
   mutate(variable = factor(variable, levels = ba.levels)) %>%
-  mutate(Location = ifelse(Type %in% 'Stool','Stool','Device')) %>%
   select(Subject, Location, variable, value)
 
 df2plot_c <- df %>% 
@@ -125,8 +142,7 @@ ggsave(paste0(fig_dir_main_subpanels, 'Fig_5c_subpanel_subj_pie_charts.pdf'), c_
 #######################################
 
 df2plot_d <- df.ratios %>%
-  mutate(Location = ifelse(Type %in% 'Stool','Stool','Device'),
-         total_conjugatedBA = log10(priConjSum+secConjSum),
+  mutate(total_conjugatedBA = log10(priConjSum+secConjSum),
          totalBA = log10(primarySum+secondarySum+priConjSum+secConjSum+microConj),
          pct_conjugatedBA = total_conjugatedBA/totalBA*100)
 
@@ -158,8 +174,6 @@ stat_test_conjugatedBA <- df2plot_d %>%
           axis.text = element_text(size = 10),
           axis.title.x=element_blank()))
 
-#ggsave(paste0(fig_dir,'boxplot_conj_allTypes.pdf'),b,width=6,height=4)
-
 ggsave(paste0(fig_dir_main_subpanels,'Fig_5d_subpanel_boxplot_pct_conj_bileacids.pdf'), d, width = 4, height = 3)
 
 
@@ -167,46 +181,9 @@ ggsave(paste0(fig_dir_main_subpanels,'Fig_5d_subpanel_boxplot_pct_conj_bileacids
 #######################################
 # Figure 5e - Barplots of each sample including antibiotic and concentration metadata
 #######################################
-
-ba.levels <- c('Cholic.acid','Chenodeoxycholic.acid','Glycocholic.acid','Taurocholic.acid','Glycochenodeoxycholic.acid','Taurochenodeoxycholic.acid','Tauro.a.Muricholic.acid','Deoxycholic.acid','Lithocholic.acid','Ursodeoxycholic.acid','Glycodeoxycholic.acid','Taurodeoxycholic.acid','Glycolithocholic.acid','Taurolithocholic.acid','Glycoursodeoxycholic.acid','Tauroursodeoxycholic.acid','Glycohyodeoxycholic.acid','microConj')
-
-# Colors
-pal<-c('#8F2D14','#C43E1C',
-       '#A69A11','#CBBC15','#E8D721','#ECDE46','#EFE46B',
-       '#5B4C6B','#7A668F','#8E7CA2',
-       '#2D625C','#3A7E77','#479A91','#57B2A7','#73BFB6','#8FCCC5','#ABD8D3',
-       '#090A0B')
 highlilght<-c('#8F2D14')
 
-
-df.ratios <- data.frame(sample_data(ps.bs)) %>%
-  mutate(primarySum = Cholic.acid + Chenodeoxycholic.acid) %>%
-  mutate(priConjSum = Glycocholic.acid+Taurocholic.acid+Glycochenodeoxycholic.acid+Taurochenodeoxycholic.acid+Tauro.a.Muricholic.acid) %>%
-  mutate(secondarySum = Deoxycholic.acid+Lithocholic.acid+Ursodeoxycholic.acid) %>%
-  mutate(secConjSum = Glycodeoxycholic.acid+Taurodeoxycholic.acid+Glycolithocholic.acid+Taurolithocholic.acid+Glycoursodeoxycholic.acid+Tauroursodeoxycholic.acid+Glycohyodeoxycholic.acid) %>%
-  mutate(microConj = Phenylalanocholic.acid+Leucholic.acid+Tyrosocholic.acid+Ala.TriHydroxylated.BA+Arg.Dihydroxylated.BA+Arg.TriHydroxylated.BA+Asn.Dihydroxylated.BA.1+Asn.Dihydroxylated.BA.2+Asn.TriHydroxylated.BA+Cys.Dihydroxylated.BA+Cys.TriHydroxylated.BA+Gln.Dihydroxylated.BA
-         +Gln.TriHydroxylated.BA+Glu.Dihydroxylated.BA+Glu.TriHydroxylated.BA+His.TriHydroxylated.BA+Lys.Dihydroxylated.BA+Lys.TriHydroxylated.BA+Met.TriHydroxylated.BA+Phe.Dihydroxylated.BA+Ser.Dihydroxylated.BA+Ser.TriHydroxylated.BA+Trp.TriHydroxylated.BA+Tyr.Dihydroxylated.BA)
-
-df.ratios.relabs <- data.frame(sample_data(ps.bs.relabs)) %>%
-  mutate(primarySum = Cholic.acid + Chenodeoxycholic.acid) %>%
-  mutate(priConjSum = Glycocholic.acid+Taurocholic.acid+Glycochenodeoxycholic.acid+Taurochenodeoxycholic.acid+Tauro.a.Muricholic.acid) %>%
-  mutate(secondarySum = Deoxycholic.acid+Lithocholic.acid+Ursodeoxycholic.acid) %>%
-  mutate(secConjSum = Glycodeoxycholic.acid+Taurodeoxycholic.acid+Glycolithocholic.acid+Taurolithocholic.acid+Glycoursodeoxycholic.acid+Tauroursodeoxycholic.acid+Glycohyodeoxycholic.acid) %>%
-  mutate(microConj = Phenylalanocholic.acid+Leucholic.acid+Tyrosocholic.acid+Ala.TriHydroxylated.BA+Arg.Dihydroxylated.BA+Arg.TriHydroxylated.BA+Asn.Dihydroxylated.BA.1+Asn.Dihydroxylated.BA.2+Asn.TriHydroxylated.BA+Cys.Dihydroxylated.BA+Cys.TriHydroxylated.BA+Gln.Dihydroxylated.BA
-         +Gln.TriHydroxylated.BA+Glu.Dihydroxylated.BA+Glu.TriHydroxylated.BA+His.TriHydroxylated.BA+Lys.Dihydroxylated.BA+Lys.TriHydroxylated.BA+Met.TriHydroxylated.BA+Phe.Dihydroxylated.BA+Ser.Dihydroxylated.BA+Ser.TriHydroxylated.BA+Trp.TriHydroxylated.BA+Tyr.Dihydroxylated.BA)
-
-df<-melt(df.ratios, id.vars = c('Main','Subject','pH','Type','Set','total_abundances'), 
-         measure.vars = c('Tauro.a.Muricholic.acid', 'Tauroursodeoxycholic.acid','Taurocholic.acid',
-                          'Glycoursodeoxycholic.acid','Glycohyodeoxycholic.acid','Glycocholic.acid',
-                          'Taurochenodeoxycholic.acid','Taurodeoxycholic.acid','Cholic.acid','Ursodeoxycholic.acid',
-                          'Glycochenodeoxycholic.acid','Glycodeoxycholic.acid','Taurolithocholic.acid',
-                          'Chenodeoxycholic.acid','Deoxycholic.acid','Glycolithocholic.acid','Lithocholic.acid',
-                          'microConj')) %>%
-  #'Tyrosocholic.acid','Phenylalanocholic.acid','Leucholic.acid','Ala.TriHydroxylated.BA','Arg.Dihydroxylated.BA','Arg.TriHydroxylated.BA','Asn.Dihydroxylated.BA.1','Asn.Dihydroxylated.BA.2','Asn.TriHydroxylated.BA','Cys.Dihydroxylated.BA','Cys.TriHydroxylated.BA','Gln.Dihydroxylated.BA','Gln.TriHydroxylated.BA','Glu.Dihydroxylated.BA','Glu.TriHydroxylated.BA','His.TriHydroxylated.BA','Lys.Dihydroxylated.BA','Lys.TriHydroxylated.BA','Met.TriHydroxylated.BA','Phe.Dihydroxylated.BA','Ser.Dihydroxylated.BA','Ser.TriHydroxylated.BA','Trp.TriHydroxylated.BA','Tyr.Dihydroxylated.BA')) %>%
-  mutate(variable = as.character(variable)) %>%
-  mutate(variable = factor(variable, levels=ba.levels))
-
-df.relabs<-melt(df.ratios.relabs, id.vars = c('Main','Subject','pH','Type','Set','total_abundances'), 
+df.relabs<-melt(df.ratios, id.vars = c('Main','Subject','pH','Type','Set','Location','total_abundances'), 
                 measure.vars = c('Tauro.a.Muricholic.acid', 'Tauroursodeoxycholic.acid','Taurocholic.acid',
                                  'Glycoursodeoxycholic.acid','Glycohyodeoxycholic.acid','Glycocholic.acid',
                                  'Taurochenodeoxycholic.acid','Taurodeoxycholic.acid','Cholic.acid','Ursodeoxycholic.acid',
@@ -215,30 +192,30 @@ df.relabs<-melt(df.ratios.relabs, id.vars = c('Main','Subject','pH','Type','Set'
                                  'microConj')) %>%
   #'Tyrosocholic.acid','Phenylalanocholic.acid','Leucholic.acid','Ala.TriHydroxylated.BA','Arg.Dihydroxylated.BA','Arg.TriHydroxylated.BA','Asn.Dihydroxylated.BA.1','Asn.Dihydroxylated.BA.2','Asn.TriHydroxylated.BA','Cys.Dihydroxylated.BA','Cys.TriHydroxylated.BA','Gln.Dihydroxylated.BA','Gln.TriHydroxylated.BA','Glu.Dihydroxylated.BA','Glu.TriHydroxylated.BA','His.TriHydroxylated.BA','Lys.Dihydroxylated.BA','Lys.TriHydroxylated.BA','Met.TriHydroxylated.BA','Phe.Dihydroxylated.BA','Ser.Dihydroxylated.BA','Ser.TriHydroxylated.BA','Trp.TriHydroxylated.BA','Tyr.Dihydroxylated.BA')) %>%
   mutate(variable = as.character(variable)) %>%
-  mutate(variable = factor(variable, levels=ba.levels))
+  mutate(variable = factor(variable, levels=ba.levels),
+         rel_abund = value/total_abundances)
 
 # Determine order of samples based on Type & Subj 10 & 15 last
-order <- data.frame(sample_data(ps.bs.relabs)) %>%
-  select(Main, Type, Subject) %>%
+order <- df.ratios %>%
+  select(Main, Type, Subject, Location) %>%
   mutate(subj_reorder = factor(Subject, levels=c('1','2','3','4','5','6','7','8','9','11','12','13','14','10','15')))%>%
-  mutate(Location = ifelse(Type == 'Stool','Stool','Device')) %>%
   arrange(Location,Type,subj_reorder)
 
 order<-as.character(order$Main)
 
-df2plot <- df.relabs %>%
+df2plot_e <- df.relabs %>%
   mutate(Main = fct_relevel(Main, order)) %>%
-  mutate(Location = ifelse(Type == 'Stool','Stool','Device')) %>%
-  mutate(abundance_fill = ifelse(total_abundances > 450000, 0,1))
+  mutate(abundance_fill = ifelse(total_abundances > 450000, 0,1),
+         Antibiotics_Taken = ifelse(Subject %in% c('10','15'), 1, 0))
 
 
-(p1<-ggplot(df2plot, aes(x=Main, y=value, fill=variable))+
+(p1<-ggplot(df2plot_e, aes(x=Main, y=rel_abund, fill=variable))+
     geom_bar(stat='identity') +
     theme_minimal() +
     scale_fill_manual(labels = paste("<span style='color:",
                                      pal,
                                      "'>",
-                                     levels(df2plot$variable),
+                                     levels(df2plot_e$variable),
                                      '</span>'), values = pal)+
     scale_x_discrete(limits = rev) +
     coord_flip() +
@@ -256,7 +233,7 @@ grid.draw(legend)
 dev.off()
 
 #Replot to exclude legend
-(p1<-ggplot(df2plot, aes(x=Main, y=value, fill=variable))+
+(p1<-ggplot(df2plot_e, aes(x=Main, y=rel_abund, fill=variable))+
     geom_bar(stat='identity') +
     scale_fill_manual(values = pal) +
     # scale_x_discrete(limits = rev) +
@@ -269,12 +246,12 @@ dev.off()
           axis.ticks.x=element_blank())+
     ylab('Relative abundance of bile acid \n'))
 
-(p2<-ggplot(df2plot, aes(x=Main, y=total_abundances, fill=abundance_fill)) +
+(p2<-ggplot(df2plot_e, aes(x=Main, y=total_abundances, fill=abundance_fill)) +
     geom_bar(stat='identity')+
     scale_fill_gradient(labels = paste("<span style='color:",
                                        c(highlilght, 'black'),
                                        "'>",
-                                       df2plot$abundance_fill,
+                                       df2plot_e$abundance_fill,
                                        '</span>'),
                         low=highlilght, high='black')+
     scale_x_discrete(limits = rev) + 
@@ -289,10 +266,7 @@ dev.off()
           legend.position = 'none'))
 
 
-df2plot <- df2plot %>%
-  mutate(Antibiotics_Taken = ifelse(Subject %in% c('10','15'), 1, 0))
-
-(p3<-ggplot(df2plot, aes(x=Main, fill=Antibiotics_Taken)) +
+(p3<-ggplot(df2plot_e, aes(x=Main, fill=Antibiotics_Taken)) +
     geom_bar() +
     scale_fill_gradient(low='white', high=highlilght) +
     theme(legend.position='none') +
@@ -306,7 +280,7 @@ df2plot <- df2plot %>%
           axis.ticks.x=element_blank()))
 
 
-(p4<-ggplot(df2plot, aes(x=Main, fill=Type)) +
+(p4<-ggplot(df2plot_e, aes(x=Main, fill=Type)) +
     geom_bar() +
     scale_fill_manual(values=CapTypeAndStoolColors) +
     theme(legend.position='none')+
@@ -320,23 +294,8 @@ df2plot <- df2plot %>%
           axis.ticks.x=element_blank()))
 
 
-#p5<-ggplot(df2plot, aes(x=Main, fill=pH)) +
-#    geom_bar()+
-#    theme_minimal() +
-#    scale_fill_gradient(low='#B40F20', high='#46ACC8')+
-#    theme(legend.position='none')+
-#coord_flip()+
-#    xlab('pH')+
-#    theme(axis.title.y=element_blank(),
-#        axis.text.y=element_blank(),
-#        axis.ticks.y=element_blank(), 
-#        axis.text.x=element_blank(),
-#        axis.ticks.x=element_blank())
-#p5
-#ggsave(paste0(fig_dir,'barplot_bs_pH_all.pdf'),p5,width=4,height=8)
-
 # All plots together
 (bar.plots<-plot_grid(p4,p1,p2,p3, nrow=1, rel_widths=c(1,6,1,1)))
 
-
+## The panels for this figure were assembled in Illustrator due to the intricate placement, especially for panel 5e.
 

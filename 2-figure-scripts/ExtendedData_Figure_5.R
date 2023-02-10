@@ -67,35 +67,31 @@ capsule_asv_cazyme <- taxa_devices %>%
   left_join(df2plot, by='meta_samplename') %>%
   filter(Abundance > 0)
 
-# split the data 
-B <- split(capsule_asv_cazyme, capsule_asv_cazyme$ASV)
-
-##CAzyme abundance read
-# Calculate the correlation in all data.frames using lapply 
-M <- lapply(B, function(x) cor.test(x$Abundance, x$cazyme_perc_mapped, method='spearman'))
-
-# Get ASVs that are significant
-pvals<-lapply(M, function(x) x$p.value)
-pvals<-as.data.frame(pvals)
-pvals.corrected<-p.adjust(pvals,method="BH") %>% as.data.frame() %>% filter(. < 0.01)
-sig<-rownames(pvals.corrected)
+df_c.filt <- asv_corr(capsule_asv_cazyme, location_test = "Devices", cor_variable = 'cazyme_perc_mapped', include_0_abundance = F) %>%
+  filter(adj_pval < 0.001) 
 
 # Filter dataframe to only include significant ASVs              
-df2plot.filt <- capsule_asv_cazyme %>%
-  filter(ASV %in% sig) %>%
+df_ed5c <- capsule_asv_cazyme %>%
+  filter(ASV %in% df_c.filt$ASV) %>%
   mutate(label = ifelse(!is.na(Genus), paste0(Genus, " ", Species), Family))
 
-length(unique(df2plot.filt$ASV))
 
-(ed_5c <- ggplot(df2plot.filt, aes(x=cazyme_perc_mapped, y=Abundance)) + 
-    geom_point()  + geom_smooth(method=lm, se=FALSE) +
-    labs(y=expression('log'[2]*'(ASV count)'), x=expression('% reads mapped to CAZyme database reads mapped')) +
-    stat_cor(method = "spearman", cor.coef.name = "rho") +
-    facet_wrap(~label, ncol = 5)+
+(ed_5c <- ggplot(df_ed5c, aes(x=cazyme_perc_mapped, y=Abundance)) + 
+    geom_point(alpha = 0.6) + 
+    geom_smooth(method=lm, se=FALSE) +
+    labs(y=expression('log'[2]*'(ASV count)'), 
+         x=expression('% reads mapped to CAZyme database')) +
+    stat_cor(method = "spearman", 
+             aes(label = after_stat(r.label)),
+             cor.coef.name = "rho",
+             r.accuracy = 0.01,
+             label.x = 5.5,
+             label.y = 15) +
+    facet_wrap(~label+ ASV, ncol = 4) +
     theme(strip.text = element_text(size=12),
           axis.text = element_text(size = 12)))
 
-ggsave(paste0(fig_dir_ed_subpanels, 'ED_Fig_5c_sig_corr_cazyme.pdf'), plot = ed_5c, width=6, height=6)
+ggsave(paste0(fig_dir_ed_subpanels, 'ED_Fig_5c_sig_corr_cazyme.pdf'), plot = ed_5c, width=8, height=8)
 
 
 ### LOOKING ONLY AT THE STOOL, NO SIGNIFICANT CORRELATIONS AT THE ASV LEVEL SO THIS SCRIPT GROUPS ASVS BY FAMILIES
@@ -128,31 +124,24 @@ stool_asv_cazyme <- taxa_stool_family %>%
   dplyr::rename(ASV=Family) %>%
   filter(Abundance > 0)
 
-head(stool_asv_cazyme)
-# split the data 
-B_stool <- split(stool_asv_cazyme, stool_asv_cazyme$ASV)
-
-##CAzyme abundance read
-# Calculate the correlation in all data.frames using lapply 
-M_stool <- lapply(B_stool, function(x) cor.test(x$Abundance, x$cazyme_perc_mapped, method='spearman'))
-
-# Get ASVs that are significant
-pvals_stool<-lapply(M_stool, function(x) x$p.value)
-pvals_stool<-as.data.frame(pvals_stool)
-pvals.corrected_stool <- p.adjust(pvals_stool, method="BH") %>% as.data.frame() %>% filter(. < 0.01)
-sig_stool <- rownames(pvals.corrected_stool)
-
+df_d.filt <- asv_corr(stool_asv_cazyme, location_test = "Stool", cor_variable = 'cazyme_perc_mapped', include_0_abundance = F) %>%
+  filter(adj_pval < 0.01) 
 # Filter dataframe to only include significant ASVs              
-df2plot.filt_stool <- stool_asv_cazyme %>%
-  filter(ASV %in% sig_stool) %>%
+df_ed5d <- stool_asv_cazyme %>%
+  filter(ASV %in% df_d.filt$ASV) %>%
   mutate(label = ASV)
 
-length(unique(df2plot.filt_stool$ASV))
+length(unique(df_ed5d$ASV))
 
-(ed_5d <-ggplot(df2plot.filt_stool, aes(x=cazyme_perc_mapped, y=Abundance)) + 
+(ed_5d <-ggplot(df_ed5d, aes(x=cazyme_perc_mapped, y=Abundance)) + 
     geom_point()  + geom_smooth(method=lm, se=FALSE) +
     labs(y=expression('log'[2]*'(ASV count)'), x=expression('% reads mapped to CAZyme database')) +
-    stat_cor(method = "spearman", cor.coef.name = "rho") +
+    stat_cor(method = "spearman", 
+             aes(label = after_stat(r.label)),
+             cor.coef.name = "rho",
+             r.accuracy = 0.01,
+             label.x = 5.15,
+             label.y = 13) +
     facet_wrap(~ ASV)+
     theme(strip.text = element_text(size=12),
           axis.text = element_text(size = 12)))
@@ -242,6 +231,9 @@ ggsave(paste0(fig_dir_ed_subpanels, 'ED_Fig_5e_num_Cazymes_in_all.pdf'), plot = 
 #######################################
 # ED Fig. 5f,g - Abundance of reads mapped to CARD database for location and by subject
 #######################################
+#--------------------------------
+# resset filepath
+#--------------------------------
 amr_dir <- "~/Dropbox/Capsule/SECOND REVISION/repo_files/amr/"
 raw_amr <- read.table(file=paste0(amr_dir, '90perc/summary.txt'), header=FALSE, sep="\t") %>%
   mutate(amr_alignment = as.numeric(str_split(V2, '%', simplify=TRUE)[,1])) %>%
@@ -313,49 +305,31 @@ ggplot(capsule_asv_amr) +
 
 ggplot(capsule_asv_amr) + 
   geom_histogram(aes(x = amr_alignment))
-##Neither are normally distributed so need to use Spearman correlations below
+##Neither are normally distributed so need to use Spearman correlations 
 
-# split the data 
-B_amr_capsule <- split(capsule_asv_amr, capsule_asv_amr$ASV)
+df_h.filt <- asv_corr(capsule_asv_amr, location_test = "Devices", cor_variable = 'amr_alignment', include_0_abundance = F) %>%
+  filter(adj_pval < 0.001) 
 
-##CAzyme abundance read
-# Calculate the correlation in all data.frames using lapply 
-M_amr_capsule <- lapply(B_amr_capsule, function(x) cor.test(x$Abundance, x$amr_alignment, method='spearman'))
-
-# Get ASVs that are significant
-pvals_amr_capsule <- data.frame(pval = sapply(M_amr_capsule, function(x) x$p.value)) %>%
-  rownames_to_column("ASV") %>%
-  mutate(adj_pval = p.adjust(pval, method = "BH")) %>%
-  filter(adj_pval < 0.01)
-
-sig_amr_capsule <- pvals_amr_capsule$ASV
-sig_amr_capsule
-
-# # Get positive slopes only
-# r<-lapply(M, function(x) x$estimate)
-# r<-as.data.frame(r)
-# filtered<- r %>% t() %>% 
-#   as.data.frame() %>% 
-#   rownames_to_column(var='taxa') %>% 
-#   filter(cor > 0)
-# sig.r<-filtered$taxa             
 
 # Filter dataframe to only include significant ASVs              
 capsule_asv_amr.filt <- capsule_asv_amr %>%
-  filter(ASV %in% sig_amr_capsule) %>%
-  # filter(ASV %in% sig.r) %>%
+  filter(ASV %in% df_h.filt$ASV) %>%
   mutate(label = ifelse(!is.na(Genus), paste0(Genus, " ", Species), Family))
-  # mutate(label = ASV)
 
 length(unique(capsule_asv_amr.filt$ASV))
 
-(ed_5h <- ggplot(capsule_asv_amr.filt %>% filter(amr_alignment > 0.3), 
+(ed_5h <- ggplot(capsule_asv_amr.filt, 
                  aes(x=amr_alignment, y=Abundance)) + 
     geom_point()  + 
     geom_smooth(method=lm, se=FALSE) +
     labs(y=expression('log'[2]*'(ASV count)'), x=expression('% reads mapped to CARD')) +
-    stat_cor(method = "spearman", cor.coef.name = "rho") +
-    facet_wrap(~label, ncol = 5)+
+    stat_cor(method = "spearman", 
+             aes(label = after_stat(r.label)),
+             cor.coef.name = "rho",
+             r.accuracy = 0.01,
+             label.x.npc = "center",
+             label.y.npc = "top") +
+    facet_wrap(~label+ASV, ncol = 4)+
     theme(strip.text = element_text(size=12),
           axis.text = element_text(size = 12)))
 
@@ -365,39 +339,17 @@ ggsave(paste0(fig_dir_ed_subpanels, 'ED_Fig_5h_sig_corr_amr_device.pdf'), ed_5h,
 
 # Filter OTUs
 stool_asv_amr<- taxa_stool_family %>%
-  # group_by(Family, meta_samplename) %>% 
-  # dplyr::summarise(Abundance=sum(Abundance)) %>%
   dplyr::rename(file_name = meta_samplename) %>%
   left_join(amr.df, by=c('file_name')) %>%
   dplyr::rename(ASV=Family) %>%
   filter(Abundance > 0)
 
-# split the data 
-B_amr_stool <- split(stool_asv_amr, stool_asv_amr$ASV)
-
-##CAzyme abundance read
-# Calculate the correlation in all data.frames using lapply 
-M_amr_stool <- lapply(B_amr_stool, function(x) cor.test(x$Abundance, x$amr_alignment, method='spearman'))
-
-# Get ASVs that are significant
-pvals_amr_stool <- data.frame(pval = sapply(M_amr_stool, function(x) x$p.value)) %>%
-  mutate(adj_pval = p.adjust(pval, method = "BH")) %>%
-  rownames_to_column("ASV") 
-sig_amr_stool<-pvals_amr_stool %>%
-  filter(adj_pval < 0.01) %>%
-  pull(ASV)
-
-# # Get positive slopes only
-# r<-lapply(M, function(x) x$estimate)
-# r<-as.data.frame(r)
-# 
-# filtered<- r %>% t() %>% as.data.frame() %>% rownames_to_column(var='taxa') %>% filter(cor > 0)
-# sig.r<-filtered$taxa             
+df_i.filt <- asv_corr(stool_asv_amr, location_test = "Stool", cor_variable = 'amr_alignment', include_0_abundance = F) %>%
+  filter(adj_pval < 0.01) 
 
 # Filter dataframe to only include significant ASVs              
 stool_asv_amr.filt <- stool_asv_amr %>%
-  filter(ASV %in% sig_amr_stool) %>%
-  # filter(ASV %in% sig.r) %>%
+  filter(ASV %in% df_i.filt$ASV) %>%
   mutate(label = ASV)
 
 head(stool_asv_amr.filt)
@@ -405,7 +357,12 @@ head(stool_asv_amr.filt)
 (ed_5i <- ggplot(stool_asv_amr.filt, aes(x=amr_alignment, y=Abundance)) + 
   geom_point()  + geom_smooth(method=lm, se=FALSE) +
   labs(y=expression('log'[2]*'(ASV count)'), x=expression('% reads mapped to CARD')) +
-  stat_cor(method = "spearman", cor.coef.name = "rho") +
+  stat_cor(method = "spearman", 
+           aes(label = after_stat(r.label)),
+           cor.coef.name = "rho",
+           r.accuracy = 0.01,
+           label.x.npc = "center",
+           label.y.npc = "top") +
   facet_wrap(~label, scales = "free")+
   theme(strip.text = element_text(size=12),
         axis.text = element_text(size = 12)))
@@ -419,8 +376,6 @@ raw_amr_noefflux <- read.table(file=paste0(amr_dir, '90perc_noEfflux/summary_no_
   mutate(amr_alignment = as.numeric(str_split(V2, '%', simplify=TRUE)[,1])) %>%
   dplyr::rename(file_name=V1) %>% 
   select(-V2)
-
-head(amr.df_noefflux)
 
 amr.df_noefflux <- raw_amr_noefflux %>% 
   left_join(vars, by='file_name')  %>% 
@@ -461,24 +416,23 @@ taxa_amr <- read.table(paste0(amr_dir,'gtdbtk.bac120.summary.tsv'), sep='\t', he
   select(-classification)
 
 # Import number of bacterial genes identified in each MAG
-mag.genes <- read.csv(paste0(amr_dir, 'mag_bacterial_gene_counts.csv')) 
-
+mag.genes <- read.csv(paste0(data_dir, 'mags_metadata.csv')) 
 # Combine all metadata together
 df.final_amr_mags <- mag.genes %>% 
   left_join(taxa_amr, by='mag') %>% 
   left_join(num_amr, by='mag') %>%
   mutate(num_amr = ifelse(is.na(num_amr), 0, num_amr)) %>%
-  filter(!is.na(Family))  ##This filters out 2 NA MAGs (un-annotated) + 2 other lines that appear not to be MAGs (they are shell scripts?)
+  filter(!is.na(Family))  ##This filters out 2 NA MAGs (un-annotated)
 
 # Generate figure
 order4plot <- df.final_amr_mags %>%
-  mutate(ratio = log10((num_amr+0.1)/(bacterial_genes))) %>%
+  mutate(ratio = log10((num_amr+0.1)/(gene_count))) %>%
   group_by(Family) %>%
   dplyr::summarise(order = median(ratio)) %>% 
   arrange(order)
 
 (ed_5k <- ggplot(df.final_amr_mags %>% mutate(Family = factor(Family, levels=order4plot$Family)), 
-       aes(x=Family, y=log10((num_amr+0.1)/(bacterial_genes)))) +
+       aes(x=Family, y=log10((num_amr+0.1)/(gene_count)))) +
   geom_boxplot(outlier.shape = NA) +
   geom_point(alpha=0.4) +
   labs(x = "", y = expression('log'[10]*'(AMR/bacterial genes)')) +

@@ -124,7 +124,10 @@ ggsave(paste0(fig_dir_main_subpanels, 'Fig_1c_subpanel_asv_family_level_barplots
 #  the location of sampling is not always as expected.  So, for analyses moving forward, we remove them.
 
 df_samples <- readRDS(sample_data) %>%
-  filter(!drop_16s & Set %in% c("2", "3", "4", "5", "Stool", "Saliva"))
+  filter(!duplicate_16s, !duplicate_meta) %>%
+  filter(Set %in% c("2", "3", "4", "5", "Stool", "Saliva")) %>%
+  filter(!Volume %in% c("CONTAMINATED", "GAS", "EMPTY")) %>%
+  filter(Pellet != "n/a" | is.na(Pellet))
 
 # Here's the breakdown of where the remaining 297 samples are from:
 table(df_samples$Type)
