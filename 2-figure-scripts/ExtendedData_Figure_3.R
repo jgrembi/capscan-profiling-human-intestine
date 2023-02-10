@@ -14,25 +14,24 @@ source(paste0(here::here(), "/0-config.R"))
 # ED Fig. 3a - Abundance of taxa at the phylum-level
 #######################################
 ps <- readRDS(clean_phyloseq_object) %>% 
-  subset_samples(., drop_16s == F) %>%
-  subset_samples(., Set %in% c("2", "3", "4", "5", "Stool")) %>%
-  # filter_taxa(., function(x) sum(x > 3) > (0.05*length(x)), TRUE) %>% # Gets rid of all taxa not found at a count of 3 in at least 5% of samples (that's 14 samples)
-  tax_glom("Phylum") %>%
-  transform_sample_counts(function(x) {log2(x + 1)})
+  subset_samples(., !drop_16s & Set %in% c("2", "3", "4", "5", "Stool")) %>%
+  tax_glom(., "Phylum") %>%
+  filter_taxa(., function(x) sum(x > 15) > (0.1*length(x)), TRUE) %>% # Gets rid of all phylum with 15 or less reads in >=10% samples
+  transform_sample_counts(., function(x) {log2(x+1)})
 
 ps@sam_data$Type <- gsub("Capsule", "Device", ps@sam_data$Type)
 ps@sam_data$location <- gsub("Capsule", "Devices", ps@sam_data$location)
 
-# Some phylum for each sample
-df2plot_a <- psmelt(ps) %>%
-  filter(Abundance > 0)
-tmp<-df2plot_a %>% select(Main, location) %>% unique()
-table(tmp$location)
+df2plot_a <- psmelt(ps) 
+
+table(df2plot_a %>% select(Main, location) %>% unique() %>% pull(location))
+
 (a <- ggplot(df2plot_a, aes(x=location, y=Abundance)) +
-    # geom_point() +
     geom_boxplot(outlier.shape = NA) + 
     geom_jitter(width = 0.28,  alpha = 0.3, shape = 1) +
-    stat_compare_means(label = "p.signif", method="wilcox") +
+    stat_compare_means(comparisons = list(c("Devices", "Stool")), 
+                       label = "p.signif", 
+                       method="wilcox") +
     labs(x = "", y = expression('log'[2]*'(ASV count)')) + 
     facet_wrap(~Phylum, ncol = 5))
 
@@ -96,7 +95,7 @@ alpha_div_summary_type <- alpha_div_samp_summary %>%
 (types <- ggplot(alpha_div_summary_type, 
                  aes(y = Type, x = meanShannon, color = Type, alpha = level)) + 
     geom_point() +
-    geom_errorbar(aes(xmin = lower_ci, xmax = upper_ci), size = 0.8, width = 0.5) +
+    geom_errorbar(aes(xmin = lower_ci, xmax = upper_ci), linewidth = 0.8 ) +
     scale_color_manual(labels = paste("<span style='color:",
                                       CapType,
                                       "'>",
@@ -147,7 +146,7 @@ alpha_div_summary_set <- alpha_div_samp_set %>%
 (sets <- ggplot(alpha_div_summary_set, 
                 aes(x = Set, y = meanShannon, color = Set, alpha = level)) + 
     geom_point() +
-    geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), size = 0.8, width = 0.5) +
+    geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), linewidth = 0.8) +
     coord_flip() + 
     scale_color_viridis_d(end = 0.8) + 
     scale_alpha_manual(values = c(0.2, 0.9), guide = "none") + 
@@ -165,6 +164,6 @@ plot_grid(a, types, sets,
           nrow = 3, 
           labels = c("a", "b", "c"), 
           label_size = 16, 
-          rel_heights = c(0.6, 1, 1))
+          rel_heights = c(0.75, 1.1, 1.1))
 
 ggsave(paste0(fig_dir, "ED_Figure_3.pdf"), width = 10, height = 14)
