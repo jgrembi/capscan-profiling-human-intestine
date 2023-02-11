@@ -216,7 +216,7 @@ bs_capsule <- df_bs %>%
   mutate_all(~ log10(. + 0.000001)) %>%
   as.matrix 
 
-res_capsule <- rcorr(bs_capsule)
+res_capsule <- rcorr(bs_capsule, type = "pearson")
 
 # Generate figure subpanel e
 pdf(height = 10, width = 14, file = paste0(fig_dir_main_subpanels,'Fig_6e_subpanel_capsule_bileacid_correlations.pdf'))
@@ -241,7 +241,7 @@ bs_capsule_summary <- df_bs %>%
   mutate_all(~ log10(. + 0.000001)) %>%
   as.matrix
 
-res_capsule_summary <- rcorr(bs_capsule_summary)
+res_capsule_summary <- rcorr(bs_capsule_summary, type = "pearson")
 
 # Generate the pdf of the figure          
 pdf(height = 8, width = 8, file = paste0(fig_dir_main_subpanels,'Fig_6e_subpanel_insert_capsule_ba_abbr_correlations.pdf'))
@@ -267,7 +267,7 @@ bs_stool <- df_bs %>%
   mutate_all(~ log10(. + 0.000001)) %>%
   as.matrix
 
-res_stool <- rcorr(bs_stool)
+res_stool <- rcorr(bs_stool, type = "pearson")
 
 # Generate figure
 pdf(height = 10, width = 14, file = paste0(fig_dir_main_subpanels,'Fig_6f_subpanel_stool_bileacid_correlations.pdf'))
@@ -293,7 +293,7 @@ bs_stool_summary <- df_bs %>%
   as.matrix
 
 
-res_stool_summary <- rcorr(bs_stool_summary)
+res_stool_summary <- rcorr(bs_stool_summary, type = "pearson")
 
 # Generate the pdf of the figure
 pdf(height = 8, width = 8, file = paste0(fig_dir_main_subpanels,'Fig_6f_subpanel_insert_stool_ba_abbr_correlations.pdf'))
