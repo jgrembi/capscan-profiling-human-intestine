@@ -253,6 +253,10 @@ dev.off()
 
 
 ## Barblot of concentration
+abs_conc <- c("Cholic acid","Chenodeoxycholic acid", "Lithocholic acid","Deoxycholic acid","Ursodeoxycholic acid",
+              "Tauroursodeoxycholic acid","Tauro-a-Muricholic acid", "Taurolithocholic acid","Taurodeoxycholic acid","Taurocholic acid",          
+              "Taurochenodeoxycholic acid", "Glycohyodeoxycholic acid",
+              "Glycolithocholic acid","Glycodeoxycholic acid","Glycoursodeoxycholic acid","Glycocholic acid","Glycochenodeoxycholic acid")
 capsule_conc_barplot <- df_bs %>%
   filter(Type %in% c('Device 1','Device 2','Device 3','Device 4')) %>%
   select("Tauro.a.Muricholic.acid":'Tyr.Dihydroxylated.BA') %>%
@@ -265,9 +269,23 @@ capsule_conc_barplot <- df_bs %>%
   rownames_to_column() %>%
   pivot_longer(cols = (!"rowname"), names_to = "bile_acid", values_to = "concentration") %>%
   group_by(bile_acid) %>%
-  summarise(mean_ba = (mean(concentration, na.rm = T)))
+  summarise(mean_ba = log10(mean(concentration, na.rm = T))) %>%
+  mutate(bile_acid = factor(bile_acid, levels = rev(capsule_ba_ordering)), 
+         color = ifelse(bile_acid %in% abs_conc, "green", "purple"))
   
 
+(capsule_barplot <- ggplot(capsule_conc_barplot, 
+       aes(y = bile_acid, x = mean_ba, fill = color)) + 
+  geom_col() + 
+  labs(x = "", y = "") +
+    xlim(0,6) +
+    scale_fill_manual(values = c('#00A075', "#440154FF"), guide = "none") +
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major.y = element_blank(),
+          panel.grid.major.x = element_line(color = "black")))
+  
+ggsave(paste0(fig_dir_main_subpanels,'Fig_6e_subpanel_barplot_capsule_ba_concentrations.pdf'), plot = capsule_barplot, height = 12, width = 4)
+  
 #######################################
 # Figure 6f - Correlations between all bile acids in stool
 #######################################
@@ -294,6 +312,8 @@ corrplot(res_stool$r, type = "upper", order = "hclust",
 
 dev.off()
 
+stool_ba_ordering <- corrplot(res_stool$r, type = "upper", order = "hclust", 
+                                tl.col = "black", tl.srt = 45)$corrPos$xName %>% unique
 
 ## Abbreviated/summarised correlations (insert in main figure)
 bs_stool_summary <- df_bs %>%
@@ -319,6 +339,37 @@ corrplot(res_stool_summary$r, type = "upper", order='alphabet',#order = "hclust"
          tl.col = "black", tl.srt = 45)
 
 dev.off()
+
+## Barblot of concentration
+stool_conc_barplot <- df_bs %>%
+  filter(Type %in% c('Stool')) %>%
+  select("Tauro.a.Muricholic.acid":'Tyr.Dihydroxylated.BA') %>%
+  rename_all(~ gsub(".acid", " acid", .)) %>%
+  rename_all(~ gsub(".BA", " BA", .)) %>%
+  rename_all(~ gsub("BA.", "BA ", .)) %>%
+  rename_all(~ gsub("\\.", "-", .)) %>%
+  na.omit() %>%
+  select_if(colSums(.) > 0) %>%
+  rownames_to_column() %>%
+  pivot_longer(cols = (!"rowname"), names_to = "bile_acid", values_to = "concentration") %>%
+  group_by(bile_acid) %>%
+  summarise(mean_ba = log10(mean(concentration, na.rm = T))) %>%
+  mutate(bile_acid = factor(bile_acid, levels = rev(stool_ba_ordering)), 
+         color = ifelse(bile_acid %in% abs_conc, "green", "purple"),
+         mean_ba = ifelse(mean_ba < 0, NA, mean_ba))
+
+
+(stool_barplot <- ggplot(stool_conc_barplot, 
+                           aes(y = bile_acid, x = mean_ba, fill = color)) + 
+    geom_col() + 
+    labs(x = "", y = "") +
+    xlim(0,6) +
+    scale_fill_manual(values = c('#00A075', "#440154FF"), guide = "none") +
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major.y = element_blank(),
+          panel.grid.major.x = element_line(color = "black")))
+
+ggsave(paste0(fig_dir_main_subpanels,'Fig_6f_subpanel_barplot_stool_ba_concentrations.pdf'), plot = stool_barplot, height = 12, width = 4)
 
 
 #######################################
