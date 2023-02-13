@@ -71,14 +71,6 @@ dist_long <- bind_rows(dist_long_withinSubj, dist_long_acrossSubj) %>%
 
 ## Significance test looking at Stool-Stool, Saliva-Saliva, and Capsule-Capsule within subjects compared to across subjects.
 # All are significantly different.
-sig_test <- dist_long %>% 
-  group_by(location_cat) %>%
-  do(w=wilcox.test(mean_dist~subj_comp, data = ., paired = F)) %>%
-  summarise(location_cat, Wilcox = w$p.value) %>%
-  mutate(p_short = ifelse(Wilcox < 0.0001, "<0.0001", ifelse(Wilcox < 0.001, "<0.001", ifelse(Wilcox < 0.01, "<0.01", "NS"))), 
-         p_sym = ifelse(Wilcox < 0.0001, "***", ifelse(Wilcox < 0.001, "**", ifelse(Wilcox < 0.01, "*", "NS"))))
-
-
 stat_test <- dist_long %>% 
   group_by(subj_comp) %>%
   wilcox_test(mean_dist~location_cat) %>%

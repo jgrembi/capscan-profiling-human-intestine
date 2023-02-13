@@ -136,6 +136,11 @@ d_stats %>%
 
 table(fig_ed7B_d$Type)
 
+ed_7b_wilcox_test <- fig_ed7B_d %>%
+  wilcox_test(n ~ Type, p.adjust.method = "bonferroni") %>%
+  add_significance() %>%
+  add_xy_position(x = "Type")
+
 (ed_7b <- ggplot(data = fig_ed7B_d, aes(x = Type, y = n, group = Type, fill = Type)) +
     geom_boxplot() +
     scale_fill_manual(values = CapTypeAndStoolColors, guide = "none") +
@@ -166,6 +171,11 @@ d_red %>%
          Type = gsub("Device", "", Type)) %>%
   drop_na(color) -> fig_ed7C_d
 
+
+ed_7c_wilcox_test <- fig_ed7C_d %>%
+  wilcox_test(`CV [%]` ~ Type, p.adjust.method = "bonferroni") %>%
+  add_significance() %>%
+  add_xy_position(x = "Type")
 
 (ed_7c <- ggplot(data = fig_ed7C_d, aes(x = Type, y = `CV [%]`, group = Type, fill = Type))+
     geom_violin(draw_quantiles = c(0.5))+
@@ -324,19 +334,34 @@ test <- bind_rows(within_subj_pearson, btwn_subj_pearson) %>%
   mutate(Location_in = ifelse(Location_in == "Device", "Devices", Location_in), 
          within = factor(within, levels = c("within Subjects", "between Subjects"), labels = c("Within subject", "Across subjects"))) 
 
-(main_4d <- ggplot(data = test, aes(x = 1-median, y = Location_in, color = Location_in, fill = Location_in))+
-    geom_boxplot(alpha = 0.5, outlier.shape = NA)+
-    geom_jitter(position = position_jitterdodge(jitter.width = 0.4), 
+
+main_4d_wilcox_test <- test %>% 
+  group_by(within) %>%
+  wilcox_test(median ~ Location_in) %>%
+  adjust_pvalue(method = "bonferroni") %>%
+  add_significance() %>%
+  add_xy_position(x = "Location_in") %>%
+  mutate(y.position = 0.6)
+
+(main_4d <- ggplot(data = test, aes(y = 1-median, x = Location_in))+
+    geom_boxplot(aes(color = Location_in, fill = Location_in),
+                 alpha = 0.5, outlier.shape = NA)+
+    geom_jitter(aes(color = Location_in, fill = Location_in),
+                position = position_jitterdodge(jitter.width = 0.4), 
                 shape = 16,
                 alpha = 0.8, size = 2)+
     facet_grid(within~.)+
     # scale_fill_manual(values = CapAndStoolColors, guide = "none") + 
     scale_color_manual(values = CapAndStoolColors, guide = "none") +
     scale_fill_manual(values = CapAndStoolColors, guide = "none") +
-    labs(x = "1 - [Median Pearson Correlation]", y = "") +
-    stat_compare_means(method='wilcox', 
-                       comparisons = list(c("Stool", "Devices")),
-                       label = "p.signif")) 
+    labs(y = "1 - [Median Pearson Correlation]", x = "") +
+    coord_flip() +
+    stat_pvalue_manual(main_4d_wilcox_test, 
+                       label = "p.adj.signif",
+                       tip.length = 0.01,
+                       coord.flip = T,
+                       bracket.shorten = 0.05,
+                       step.group.by = "within"))
 
 ggsave(paste0(fig_dir_main_subpanels, "Fig_4d_subpanel_pearson_correlations_by_location.pdf"), plot = main_4d)
 

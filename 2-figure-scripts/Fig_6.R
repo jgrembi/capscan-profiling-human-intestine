@@ -225,7 +225,8 @@ corrplot(res_capsule$r, type = "upper", order = "hclust",
 
 dev.off()
 
-
+capsule_ba_ordering <- corrplot(res_capsule$r, type = "upper", order = "hclust", 
+                                tl.col = "black", tl.srt = 45)$corrPos$xName %>% unique
 ## Abbreviated/summarised correlations (insert in main figure)
 bs_capsule_summary <- df_bs %>%
   filter(Type %in% c('Device 1','Device 2','Device 3','Device 4')) %>%
@@ -249,6 +250,23 @@ corrplot(res_capsule_summary$r, type = "upper", order='alphabet',#order = "hclus
          tl.col = "black", tl.srt = 45)
 
 dev.off()
+
+
+## Barblot of concentration
+capsule_conc_barplot <- df_bs %>%
+  filter(Type %in% c('Device 1','Device 2','Device 3','Device 4')) %>%
+  select("Tauro.a.Muricholic.acid":'Tyr.Dihydroxylated.BA') %>%
+  rename_all(~ gsub(".acid", " acid", .)) %>%
+  rename_all(~ gsub(".BA", " BA", .)) %>%
+  rename_all(~ gsub("BA.", "BA ", .)) %>%
+  rename_all(~ gsub("\\.", "-", .)) %>%
+  na.omit() %>%
+  select_if(colSums(.) > 0) %>%
+  rownames_to_column() %>%
+  pivot_longer(cols = (!"rowname"), names_to = "bile_acid", values_to = "concentration") %>%
+  group_by(bile_acid) %>%
+  summarise(mean_ba = (mean(concentration, na.rm = T)))
+  
 
 #######################################
 # Figure 6f - Correlations between all bile acids in stool

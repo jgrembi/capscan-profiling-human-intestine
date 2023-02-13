@@ -149,9 +149,7 @@ stat_test <- df_cap_samples %>%
 (d <- ggplot(df_cap_samples, 
              aes(x = Type, y = pH)) + 
     geom_boxplot(aes(fill = Type), outlier.shape = NA) +
-    # geom_violin(alpha = 0.9) +
     geom_beeswarm(alpha = 0.4) +
-    # geom_jitter(alpha = 0.9) +
     stat_pvalue_manual(stat_test, 
                        label = "p.adj.signif",
                        tip.length = 0.01,
@@ -188,8 +186,7 @@ summary(ps@sam_data$reads_16s)
 #   (now professor of Mathematics and Statistics at McMaster University)
 #  The function description is included in the 0.base-functions.R file.
 
-#ps_transform <- phyloseqTransformation(ps)
-# ps_transform <- readRDS(clean_phyloseq_object_transformed_filtered)
+# ps_transform <- phyloseqTransformation(ps)
 
 # We choose canberra distance because the capsule samples are often dominated by one highly abundant ASV.  
 # Canberra distance downweights these highly abundant taxa (as does our asinh-transformation above) so 
@@ -213,7 +210,6 @@ scores <- get_scores(pcoa_canberra, sample_data(ps)) %>%
                       values = c("black", CapTypeAndStoolColors), 
                       guide = "none") +    
     coord_fixed(var_exp[2]/var_exp[1]) +
-    # scale_color_manual(values = c(CapTypeAndStoolColors, "black")) + 
     scale_shape_manual(values = c(15, 17, 1)) +
     labs(x = paste0("Principal coordinate 1 [", round(var_exp[1],1), "% variance]"),
          y = paste0("Principal coordinate 2 [", round(var_exp[2], 1), "% variance]"),
@@ -232,7 +228,7 @@ scores <- get_scores(pcoa_canberra, sample_data(ps)) %>%
           legend.box = "horizontal",
           legend.margin = margin(),
           legend.spacing.x = unit(1.0, 'pt'),
-          ## This line is needed with the above (lines 151-157) to change the color of the legend text to match the points
+          ## This line is needed with the above (lines 205-211) to change the color of the legend text to match the points
           legend.text=element_markdown(size=14),
           legend.title = element_text(size = 14, vjust = 0.97),
           plot.margin = margin(t = fig_padding/5, l = fig_padding/5, r = fig_padding/5, b = fig_padding/5, unit = "pt")) + 
