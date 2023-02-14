@@ -27,6 +27,7 @@ caz_mapping <- read.delim(paste0(cazyme_dir, 'allCazymesFrom1kbContigsMappedToSa
 df2plot <- caz_mapping %>%
   filter(drop_meta == FALSE, location %in% c('Devices','Stool'), Set %in% c('2','3','4','5','Stool'))
 
+table(df2plot$location)
 # Figure generation by location
 (ed_fig_5a<-ggplot(df2plot, aes(x=location, y=cazyme_perc_mapped)) +
     geom_boxplot() +
@@ -75,6 +76,7 @@ df_ed5c <- capsule_asv_cazyme %>%
   filter(ASV %in% df_c.filt$ASV) %>%
   mutate(label = ifelse(!is.na(Genus), paste0(Genus, " ", Species), Family))
 
+table(df_ed5c %>% select(meta_samplename, location) %>% unique() %>% pull(location))
 
 (ed_5c <- ggplot(df_ed5c, aes(x=cazyme_perc_mapped, y=Abundance)) + 
     geom_point(alpha = 0.6) + 
