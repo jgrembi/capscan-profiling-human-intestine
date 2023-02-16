@@ -55,41 +55,23 @@ source(paste0(here::here(), "/0-base-functions.R"))
 #--------------------------------------------
 # define directories
 #--------------------------------------------
-# raw_data_dir = paste0(here::here(), "/data/raw_data/")
-# sherlock_dir = paste0(raw_data_dir, "fromSherlock/")
-data_dir = paste0(here::here(), "/data/data/")
+
+data_dir = paste0(here::here(), "/data/")
 fig_dir = paste0(here::here(),"/4-figures/")
 fig_dir_main_subpanels = paste0(here::here(),"/4-figures/1-main-figure-subpanels/")
 fig_dir_ed_subpanels = paste0(here::here(),"/4-figures/2-extended-data-subpanels/")
 tab_dir = paste0(here::here(),"/3-tables/")
 results_dir = paste0(here::here(), "/results/")
-
-
-
-# #--------------------------------------------
-# # define raw data paths
-# #--------------------------------------------
-# sequencing_ids = paste0(raw_data_dir, "metagenomics_sample_list.xlsx")
-# subj_capsule = paste0(raw_data_dir, "variables_all_metagenomics.xlsx")
-# sample_dates = paste0(raw_data_dir, "EB-01 Data management - with DNA and pics - protected.xlsx")
-# raw_reads =  paste0(raw_data_dir,"fromSherlock/raw_counts.txt")
-# trim_reads =  paste0(raw_data_dir,"fromSherlock/trimmed_counts.txt")
-# filt_reads =  paste0(raw_data_dir,"fromSherlock/filtered_counts.txt")
-# 
-# midas_species = paste0(raw_data_dir, "fromSherlock/species_profile_all.txt")
+cazyme_dir <- paste0(data_dir, "cazyme/")
+amr_dir <- paste0(data_dir,"amr/")
 
 #--------------------------------------------
 # define clean data paths
 #--------------------------------------------
-# sample_read_list = paste0(data_dir, "sampleReadList.txt")
-# samples_species = paste0(data_dir, "samples_species.RDS")
-sample_data = paste0(data_dir, "sample_data.RDS")
 
+sample_data = paste0(data_dir, "sample_data.RDS")
 clean_phyloseq_object = paste0(data_dir, "phyloseq_alphaDiv.rds")
-# clean_phyloseq_object_transformed = paste0(clean_data_dir, "phyloseq_alphaDiv_transformed.rds")
-# clean_phyloseq_object_transformed_filtered = paste0(clean_data_dir, "phyloseq_transformed_filtered.rds")
 phyloseq_bilesalt = paste0(data_dir, "phyloseq_bilesalt.rds")
-# phyloseq_bilesalt_relabs = paste0(data_dir, "phyloseq_bilesalt_relabs.rds")
 
 #--------------------------------------------
 # Set white theme for all figures

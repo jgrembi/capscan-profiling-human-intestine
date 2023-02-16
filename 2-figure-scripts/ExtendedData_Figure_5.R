@@ -16,7 +16,7 @@ source(paste0(here::here(), "/0-config.R"))
 
 # Import files
 vars <- data.frame(sample_data(readRDS(clean_phyloseq_object))) %>% select(Main, Subject, Type, Set, meta_samplename, location, drop_meta)
-cazyme_dir <- "~/Dropbox/Capsule/SECOND REVISION/repo_files/cazyme/"
+
 caz_mapping <- read.delim(paste0(cazyme_dir, 'allCazymesFrom1kbContigsMappedToSamples.txt'), header=FALSE) %>%
   dplyr::rename(meta_samplename=V1) %>%
   mutate(cazyme_perc_mapped = as.numeric(str_split(V2, '%', simplify=TRUE)[,1])) %>% 
@@ -97,21 +97,7 @@ ggsave(paste0(fig_dir_ed_subpanels, 'ED_Fig_5c_sig_corr_cazyme.pdf'), plot = ed_
 
 
 ### LOOKING ONLY AT THE STOOL, NO SIGNIFICANT CORRELATIONS AT THE ASV LEVEL SO THIS SCRIPT GROUPS ASVS BY FAMILIES
-# 
-# taxa <- readRDS(clean_phyloseq_object) %>%
-#     subset_samples(!drop_meta & Set %in% c("Stool")) %>% #, "Stool"
-#     filter_taxa(., function(x) sum(x > 3) > (0.05*length(x)), TRUE) %>% # Gets rid of all taxa not found at a count of 3 in at least 5% of samples (that's 14 samples)
-#     transform_sample_counts(function(x) {log2(x+1)}) %>%
-#     psmelt() %>%
-#     select(ASV, Abundance, Phylum, Family, Genus, Species, meta_samplename) %>%
-#     left_join(df2plot, by='meta_samplename') %>%
-# ----> #     group_by(Abundance, Phylum, Family, meta_samplename, cazyme_perc_mapped) %>%
-# |  #     dplyr::summarise(Abundance=sum(Abundance)) %>%
-# |  #     dplyr::rename(ASV=Family)
-# |  #              
-# ---Becca, above at the arrow is the group_by command that I copied below (line 135) and then removed 'Abundance'.  
-#     I'm not 100% sure this is correct, but I think it is because I think you want to sum all Abundance values for the Family. 
-#     Take a look and make sure I'm understanding the code correctly.
+
 taxa_stool_family <- readRDS(clean_phyloseq_object) %>%
   subset_samples(!drop_meta & Set %in% c("Stool")) %>% #, "Stool"
   tax_glom("Family") %>%
@@ -162,9 +148,8 @@ files <- list.files(path=paste0(cazyme_dir,'cazyme_rawoutput'), pattern="*overvi
 df<-lapply(files, function(x) read.delim(x) %>% mutate(file_name = str_split(x, '.overview.txt', simplify=TRUE)[,1]))
 df<-map_dfr(df, ~.x %>% mutate(across(everything(), as.character)))
 
-### CHANGE THIS LINE HERE BASED ON WHERE FOLDER LOCATION IS - you'll want to modify the index (currently 12) to be whichever index the file_name is in the folder path
 df<-bind_rows(df) %>% 
-  mutate(file_name = str_split(file_name, '/', simplify=TRUE)[,10]) %>%
+  mutate(file_name = gsub(paste0(cazyme_dir, "cazyme_rawoutput/"), "", file_name)) %>%
   filter(X.ofTools > 1) 
 
 # Merge in taxa information
@@ -236,7 +221,6 @@ ggsave(paste0(fig_dir_ed_subpanels, 'ED_Fig_5e_num_Cazymes_in_all.pdf'), plot = 
 #--------------------------------
 # resset filepath
 #--------------------------------
-amr_dir <- "~/Dropbox/Capsule/SECOND REVISION/repo_files/amr/"
 raw_amr <- read.table(file=paste0(amr_dir, '90perc/summary.txt'), header=FALSE, sep="\t") %>%
   mutate(amr_alignment = as.numeric(str_split(V2, '%', simplify=TRUE)[,1])) %>%
   dplyr::rename(file_name=V1) %>% select(-V2)
@@ -280,19 +264,6 @@ ggsave(paste0(fig_dir_ed_subpanels, 'ED_Fig_5g_amr_denisty_subj.pdf'), plot = ed
 #######################################
 
 ### ASV-LEVEL CORRELATIONS FOR JUST THE DEVICE SAMPLES
-
-# Incoporate the abundance of taxa (ie. Escherichia)
-# taxa_all <- readRDS(clean_phyloseq_object) %>% 
-#   subset_samples(!drop_16s & Set %in% c("2", "3", "4", "5")) %>%
-#   filter_taxa(., function(x) sum(x > 3) > (0.05*length(x)), TRUE) %>% # Gets rid of all taxa not found at a count of 3 in at least 5% of samples (that's 14 samples)
-#   transform_sample_counts(function(x) {log2(x + 1)}) %>%
-#   psmelt() %>%
-#   dplyr::rename(file_name = meta_samplename) %>%
-#   select(file_name, Sample, Abundance, Phylum, Family, Genus, Species, ASV) %>% 
-#   left_join(amr.df, by=c('file_name')) %>% 
-#   unique() %>%
-#   mutate(location = ifelse(location == "Capsule", "Devices", as.character(location)))
-# head(taxa_all)
 
 # Filter OTUs
 capsule_asv_amr<- taxa_devices %>%
