@@ -17,7 +17,7 @@ bs <- read.csv(paste0(data_dir, "bile_salts_wAAconjugates.csv")) %>%
 # Number of samples with bile acid data
 table(bs$SampleType)
 
-df_samples <- readRDS(paste0(data_dir, "sample_data.RDS")) %>%
+df_samples <- readRDS(sample_data) %>%
   mutate(Type = gsub("Capsule", "Device", Type), 
          Super = ifelse(Type == "Stool", Main, Super)) %>%
   filter(!duplicate_16s, !duplicate_meta, location != "Saliva") %>%

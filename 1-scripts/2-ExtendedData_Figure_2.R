@@ -68,7 +68,7 @@ ggsave(filename = paste0(fig_dir_ed_subpanels, "ED_Fig_2b_subject_transit_time.p
 #######################################
 
 #Read in dietary recall data
-diet.df <- readxl::read_xlsx(paste0(data_dir, "FoodQuestionnaire.xlsx")) %>%
+diet.df <- read_excel(paste0(data_dir, "FoodQuestionnaire.xlsx")) %>%
   select(Subject, Capsule_set, TimeOfDay_capsule, Food_pre_post,Dairy:Coffee) %>%
   mutate(Coffee = as.numeric(ifelse(Coffee == "1 (decaf)", 0.5, Coffee)), 
          Subject = factor(Subject), 

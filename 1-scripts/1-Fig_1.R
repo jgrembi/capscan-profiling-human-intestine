@@ -176,20 +176,8 @@ ggsave(filename = paste0(fig_dir_main_subpanels, "Fig_1d_subpanel_capsule_pH.pdf
 summary(ps@sam_data$reads_16s)
 
 
-# So, first we have to normalize the counts to library size.
-# Some *easy* methods that others have done in the past include: 
-#   1) rarefying the data by sub-sampling to the same sequencing depth
-#   2) converting the data all to proportions
-#  BUT, these methods toss really important information about the sample such as the uncertainty (sampling variance). 
-#  So we prefer to normalize by sampling depth, which is easy to accomplish using variance stabilization transformation 
-#  from the DESeq2 R package!  Here we use a custom function phyloseqTransformation() written by Pratheepa Jeganathan 
-#   (now professor of Mathematics and Statistics at McMaster University)
-#  The function description is included in the 0.base-functions.R file.
-
-# ps_transform <- phyloseqTransformation(ps)
-
 # We choose canberra distance because the capsule samples are often dominated by one highly abundant ASV.  
-# Canberra distance downweights these highly abundant taxa (as does our asinh-transformation above) so 
+# Canberra distance down-weights these highly abundant taxa (as does our log2-transformation above) so 
 # that we're comparing the whole community and distances aren't driven primarily by the most abundant taxa
 pcoa_canberra <- ordinate(ps,  method = "MDS", distance = "canberra")
 

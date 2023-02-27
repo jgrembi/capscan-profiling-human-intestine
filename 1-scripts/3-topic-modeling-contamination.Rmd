@@ -1,0 +1,274 @@
+---
+title: "Topic modeling to look for capsule contamination from downstream locations"
+author: "JA Grembi"
+date: "10/8/2021"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
+  word_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+# configure directories, load libraries and base functions
+source(paste0(here::here(), "/0-config.R"))
+
+knitr::opts_chunk$set(echo = F,
+                      dev = 'pdf', 
+                      fig.path = paste0(fig_dir, "topic_modeling/"))
+
+# .packages <- c("knitr","phyloseq","ape","lubridate","glmnetUtils", "DESeq2", "MetaTopics", "slam", "topicmodels", "reshape2","tidyverse", "alto")
+
+# lapply(.packages, require, character.only = TRUE)
+
+```
+
+```{r}
+ps <- readRDS(clean_phyloseq_object)
+(ps_filt <- filter_taxa(ps, function(x) sum(x > 3) > (0.1*length(x)), TRUE) %>% # Gets rid of all taxa not found at a count of 3 in at least 10% of samples
+   subset_samples(., Type != "Saliva" & drop_16s == F)) # Gets rid of all saliva samples plus other duplicates and non-useful samples
+
+```
+
+
+
+# Use alto to determine the appropriate number of topics for each subject
+
+## Run lda models
+```{r}
+run_lda <- function(subject) {
+  #subset phyloseq object to just the subject being looked at
+  ps_subj <- prune_samples(sample_data(ps_filt)$Subject == subject, ps_filt)
+  # make alto data object
+  alto_df <- list(sample_info = ps_subj@sam_data, counts = ps_subj@otu_table, taxonomy = ps_subj@tax_table)  
+  alto_df$taxonomy <- alto_df$taxonomy %>%
+    as.data.frame %>%
+    group_by(Genus, Species) %>%
+    mutate(ASV_name = paste0(ifelse(is.na(Genus), Family, Genus), " (", 
+                             ifelse(is.na(Species), "NA", Species), ") ", row_number())) %>%
+    ungroup
+  
+  colnames(alto_df$counts) <- alto_df$taxonomy$ASV_name
+    
+  # run LDA models
+  lda_varying_params_lists <-  list()
+  # use up to 17 topics because we have 16 capsules plus stool
+  for (k in 3:17) {lda_varying_params_lists[[paste0("k",k)]] <- list(k = k)} 
+  set.seed(59284331)
+  lda_models  <- 
+    run_lda_models(
+      data = alto_df$counts,
+      lda_varying_params_lists = lda_varying_params_lists,
+      lda_fixed_params_list = list(method = "VEM"),
+      dir = paste0(results_path, "microbiome_lda_models/subj", subject, "/"),
+      reset = FALSE,
+      verbose = TRUE
+    )
+  
+  
+  
+  return(list(df = alto_df,
+              models = lda_models))
+
+}
+
+subj = 1:15
+lda_models_all_subj <- lapply(subj, run_lda)
+names(lda_models_all_subj) <- paste0(rep("subj", 15), subj)
+```
+
+## Look at topic products/transport across topics
+```{r}
+
+align_topics_by_subj <- function(lda_models){
+  aligned_topics_product <- 
+    align_topics(
+      models = lda_models,
+      method = "product") 
+  
+  aligned_topics_transport <- 
+    align_topics(
+      models = lda_models,
+      method = "transport")   
+  
+  return(list(product = aligned_topics_product,
+              transport = aligned_topics_transport))
+}
+
+assess_k_stats <- lapply(names(lda_models_all_subj), function(subj) {
+  print(subj)
+  align_topics_by_subj(lda_models_all_subj[[subj]]$models)
+  })
+
+names(assess_k_stats) <- names(lda_models_all_subj)
+```
+
+```{r}
+lapply(names(assess_k_stats), function(subj) {
+  plot(assess_k_stats[[subj]]$product) + labs(title = subj)
+})
+
+
+```
+
+```{r}
+pick_k_product <- function(subj) {
+  (product = compute_number_of_paths(assess_k_stats[[subj]]$product) %>% 
+    plot_number_of_paths() + 
+    ggtitle(paste(subj, "; Method: product")))  
+}
+
+lapply(names(assess_k_stats), pick_k_product)
+```
+```{r}
+pick_k_transport <- function(subj) {
+  (transport = compute_number_of_paths(assess_k_stats[[subj]]$transport) %>% 
+    plot_number_of_paths() + 
+    ggtitle(paste0(subj, "; Method: transport")))
+}
+
+lapply(names(assess_k_stats), pick_k_transport)
+
+k<- data.frame(subj = paste0(rep("subj", 15),seq(1:15)), 
+               k_prod = c(9,6,5,7,9,11,9,12,10,10,12,8,9,9,7),
+               k_trans = c(13,6,5,10,13,8,9,12,10,8,11,8,9,9,8)) %>%
+  mutate(min_k = ifelse(k_prod < k_trans, k_prod, k_trans),
+         pick_k = paste0("k", min_k))
+               
+```
+
+
+## Get optimal model for each subject
+```{r}
+optimal_k_lda_model <- function(s) {
+  pick_k <- k$pick_k[k$subj == s]
+  model = lda_models_all_subj[[s]]$models[[pick_k]]
+  return(model)
+}
+
+
+best_k_models <- lapply(names(lda_models_all_subj), optimal_k_lda_model)
+names(best_k_models) <- names(lda_models_all_subj)
+
+plot_gammas_optimal_k <- function(model) {
+  df_gamma = model$gamma %>%
+    data.frame %>%
+    rename_all(function(n) gsub("X", "Topic_", n)) %>%
+    rownames_to_column("id_16s") %>%
+    left_join(ps_filt@sam_data %>% 
+                data.frame, by = "id_16s") %>%
+    pivot_longer(., cols = contains("Topic_"), names_to = "Topic", values_to = "gamma")
+
+  subj = paste0("Subject ", unique(df_gamma$Subject))
+  
+  (plot = ggplot(df_gamma %>%
+         filter(gamma > 0.005) %>%
+           mutate(type2 = ifelse(Type == "Stool", id_16s, Type)), 
+         aes(x = type2, y = gamma)) +
+    geom_col(aes(fill = Topic)) +
+    theme_bw()+
+    facet_grid(~Set, scales = "free") + 
+    scale_color_viridis_d(direction = -1, option = "C") +
+    labs(x='Sample type',y='Topic probabilities', title = subj)  +
+    guides(color = guide_legend(ncol = 3))) 
+  
+  return(list(df_gamma = df_gamma, 
+              gamma_plot = plot))
+}
+
+gamma_plots_by_subj <- lapply(best_k_models, plot_gammas_optimal_k)
+names(gamma_plots_by_subj) <-  names(lda_models_all_subj)
+
+```
+
+
+```{r gamma_plots, fig.height = 8, fig.width = 10}
+lapply(names(gamma_plots_by_subj), function(s) gamma_plots_by_subj[[s]]$gamma_plot)
+```
+
+
+
+
+## Identify which topics are from stool for each subj, then identifiy contamination from stool in capsules
+
+```{r}
+
+contam_threshold = 0.1
+## Function to: 
+#   1) determine the top stool topics (defined as gamma > 0.1 in any stool sample) and 
+#   2) subset the data.frame to remove topics not considered "stool" topics
+#  Returns a data.frame of all samples from a subject, which includes a Topic*sample for each row (each sample will have one row for each topic)
+subj_top_stool_topics <- function(s) {
+  # s= "subj2"
+  s_gamma <- gamma_plots_by_subj[[s]]$df_gamma %>%
+    mutate(Recover_time_corr = as.POSIXct(paste0(Recover_date, gsub("1899-12-31","", Recover_time)), format = "%Y-%m-%d  %H:%M:%S"))
+  
+  stool_topics <- s_gamma %>%
+  filter(Type == "Stool") %>%
+    group_by(Recover_time_corr) %>%
+    slice_max(order_by = gamma, n = 2) %>%  ## Pull out top 2 stool topics
+    mutate(topic_date = paste0(Topic, "_", Recover_date),
+           topic_rank = rep_len(c(1,2),length(.data$id_16s))) %>%
+    filter(gamma > 0.1) #%>% ## Keep only those with gamma > 0.1 
+  
+  stool_topic_ratio <- stool_topics %>%
+    group_by(Recover_time_corr) %>%
+    summarise(stool_topic_ratio = ifelse(length(gamma) > 1, gamma[topic_rank == 1]/gamma[topic_rank == 2], 1), 
+              top_stool_topics = list(Topic)) 
+  
+    setDT(s_gamma)#[, join_date := Recover_time_corr]
+    setDT(stool_topic_ratio)#[, join_date := Recover_time_corr]
+    
+    df_out <- stool_topic_ratio[s_gamma, on = "Recover_time_corr", roll = "nearest"] %>%
+      rowwise %>%
+      filter(Topic %in% unlist(top_stool_topics)) %>%
+      select(id_16s:gamma, Recover_time_corr:top_stool_topics) %>%
+      mutate(high_stool_topic = ifelse(gamma > 0.05, T, F),
+             topic_rank = ifelse(Topic == top_stool_topics[1], 1, 2)) 
+    
+  return(df_out)
+}
+
+## Run above function on all subjects and put results into a single data.frame
+subj_gammas_all <- map_dfr(names(gamma_plots_by_subj), subj_top_stool_topics)
+
+# Summarize the results for each sample
+contam_summary <- subj_gammas_all %>%
+  filter(Set != "Stool") %>% # remove stool because it will always be contaminated with itself:)
+  group_by(Subject, id_16s, Set, Type, stool_topic_ratio) %>%
+  summarise(n = n(), # number of topics identified for that subject as 'stool' topics
+            n_stool_topics_over_threshold = sum(high_stool_topic == T), # number of topics over 5% in the sample
+            sum_gamma_stool_topics = sum(gamma),
+            top_topic_ratio = ifelse(length(gamma) > 1, gamma[topic_rank == 1]/gamma[topic_rank == 2], 1)) %>%   # total proportion of the sample represented by 'stool' topics
+  mutate(ratio_diff = abs(top_topic_ratio-stool_topic_ratio),
+         clear_contam = ifelse(sum_gamma_stool_topics > contam_threshold & abs(top_topic_ratio-stool_topic_ratio) <= 3, T, F),  # obviously contam if the sum of 'stool' topics is greater than 10% *and* if more than half of the ratio of stool topics are similar to stool.
+         possible_contam = ifelse(sum_gamma_stool_topics > contam_threshold, T, F))  # exceeds the contamination threshold, but no requirement for multiple stool topics to be represented
+
+table(contam_summary$clear_contam)
+table(contam_summary$possible_contam)
+
+## This is the dataframe we'll merge with the sample data to filter out 'potentially contaminated' capsule samples.
+saveRDS(contam_summary, paste0(clean_data_dir, "contaminated_samples.rds"))
+```
+
+## Summary by subject
+```{r}
+subj_contam_summary <- contam_summary %>%
+  ungroup() %>%
+  group_by(Subject) %>%
+  summarise(n = n(),
+            n_clear_contam = sum(clear_contam == T),
+            n_possible_contam = sum(possible_contam == T),
+            pct_clear_contam = n_clear_contam/n*100, 
+            pct_possible_contam = n_possible_contam/n*100)
+  
+```
+
+
+
+
+

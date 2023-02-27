@@ -57,13 +57,12 @@ source(paste0(here::here(), "/0-base-functions.R"))
 #--------------------------------------------
 
 data_dir = paste0(here::here(), "/data/")
-fig_dir = paste0(here::here(),"/4-figures/")
-fig_dir_main_subpanels = paste0(here::here(),"/4-figures/1-main-figure-subpanels/")
-fig_dir_ed_subpanels = paste0(here::here(),"/4-figures/2-extended-data-subpanels/")
-tab_dir = paste0(here::here(),"/3-tables/")
-results_dir = paste0(here::here(), "/results/")
 cazyme_dir <- paste0(data_dir, "cazyme/")
 amr_dir <- paste0(data_dir,"amr/")
+fig_dir = paste0(here::here(),"/2-figures/")
+fig_dir_main_subpanels = paste0(here::here(),"/2-figures/1-main-figure-subpanels/")
+fig_dir_ed_subpanels = paste0(here::here(),"/2-figures/2-extended-data-subpanels/")
+tab_dir = paste0(here::here(),"/3-tables/")
 
 #--------------------------------------------
 # define clean data paths

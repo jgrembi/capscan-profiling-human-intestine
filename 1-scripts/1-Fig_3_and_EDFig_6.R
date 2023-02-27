@@ -14,32 +14,15 @@ rm(list=ls())
 # configure directories, load libraries and base functions
 source(paste0(here::here(), "/0-config.R"))
 
-# df <- R.matlab::readMat(paste0(data_dir, "viral_contig_prophage_coverage_summary.mat"))
 
 reads_threshold <- 1e6
-# variables_all_meta <- read.csv(paste0(data_dir, "variables_all_metagenomics_corrected.csv")) #%>%
 variables_all_meta <- read_excel(paste0(data_dir, "sample_metadata_matlab_export.xlsx"),
                                  col_types = c("text", "text", "numeric", "numeric", "numeric", "text", "text", "numeric", "text", "numeric", "numeric", "numeric", "numeric")) %>%
-  mutate(Abrreviation = gsub("'", "", Abrreviation),
-         Subject = factor(Subject, levels = c(1:15)),
-         location = gsub("'", "", `Putative location`), 
-         location = ifelse(location == "stool", "Stool", ifelse(location == "", "Control", location)), 
-         Set = ifelse(location == "Stool", "Stool", ifelse(location == "Saliva", "Saliva", (gsub("Set", "", gsub("'", "", Set))))))
+  mutate(Abrreviation = gsub("'", "", Abrreviation))
 
 
 df_samples <- readRDS(sample_data) %>%
   filter(Set %in% c("2", "3", "4", "5", "Stool", "Saliva"))
-
-variables_all_meta_new <- read_excel(paste0(data_dir, "sample_metadata_matlab_export.xlsx"),
-                                     col_types = c("text", "text", "numeric", "numeric", "numeric", "text", "text", "numeric", "text", "numeric", "numeric", "numeric", "numeric")) %>%
-  mutate(meta_samplename = gsub("'", "", Abrreviation),
-         `Putative location` = ifelse(`Putative location` == "stool", "Stool", `Putative location`)) %>%
-  select(-reads_humanRemoved) %>%
-  left_join(df_samples %>% select(meta_samplename, reads_meta_filtered, drop_meta)) %>%
-  select(-meta_samplename) %>%
-  dplyr::rename(reads_humanRemoved = reads_meta_filtered)
-
-write.csv(variables_all_meta_new, file = paste0(data_dir, "sample_metadata_matlab_export_updatedHumanReadsRemoved.csv"))
 
 phage_names <- read_excel(paste0(data_dir, "phage_contig_names.xlsx"), col_names = F) %>%
   mutate(phage_name = gsub("'", "", `...1`))
@@ -61,7 +44,7 @@ prophage_ind_long <- prophage_ind %>%
   dplyr::rename(phage_name = phagecontignames)
 
 phage_df <- df_samples %>%
-  select(meta_samplename, location, Subject:Main,reads_meta_trimmed, reads_meta_filtered, drop_meta) %>%
+  select(meta_samplename, location, Subject:Main, reads_meta_filtered, drop_meta) %>%
   left_join(phage_depth %>% 
               rownames_to_column("meta_samplename"), by = "meta_samplename") %>%
   pivot_longer(cols = `A10_2-k141_36643`:`P15_1-k141_98150`, names_to = "phage_name", values_to = "phage_depth") %>%

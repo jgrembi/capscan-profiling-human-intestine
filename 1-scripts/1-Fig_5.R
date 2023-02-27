@@ -10,17 +10,13 @@ rm(list=ls())
 # configure directories, load libraries and base functions
 source(paste0(here::here(), "/0-config.R"))
 
-# Only look at data of samples from Sets 2,3,4,5 that meet 16S cut-offs & bile acid cut-offs
-# ps.bs.raw <- readRDS(phyloseq_bilesalt) %>% subset_samples(., drop_16s == F)
-# ps.bs<-subset_samples(ps.bs.raw, Set %in% c('2','3','4','5','Stool'))
-# ps.bs@sam_data$Type <- gsub("Capsule", "Device", ps.bs@sam_data$Type)
-
+# Only look at data of samples from Sets 2,3,4,5 
 bs <- read.csv(paste0(data_dir, "bile_salts_wAAconjugates.csv")) %>%
   dplyr::rename(Super = Sample.ID) %>%
   select(-(Subject.Number:Capsule.Type)) %>%
   mutate(Super = as.character(Super))
   
-df_samples <- readRDS(paste0(data_dir, "sample_data.RDS")) %>%
+df_samples <- readRDS(sample_data) %>%
   mutate(Type = gsub("Capsule", "Device", Type), 
          Super = ifelse(Type == "Stool", Main, Super))
 
