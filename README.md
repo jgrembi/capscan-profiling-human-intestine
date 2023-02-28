@@ -1,5 +1,6 @@
 # capscan-profiling-human-intestine
 Profiling of the human intestinal microbiome and bile acids with CapScan sampling device
+[Zenodo DOI](10.5281/zenodo.7683655)
 
 ## Description
 This repository includes data and replication files to reproduce the analyses in the manuscript:
