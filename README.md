@@ -2,6 +2,9 @@
 Profiling of the human intestinal microbiome and bile acids with CapScan sampling device
 
 [10.5281/zenodo.7683655](https://doi.org/10.5281/zenodo.7683655) 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7683655.svg)](https://doi.org/10.5281/zenodo.7683655)
+
 ## Description
 This repository includes data and replication files to reproduce the analyses in the manuscript:
 
