@@ -5,7 +5,7 @@
 #  Figure 4
 #  Extended Data Figure 7
 #
-# Authors: Peter Triet and Florian Schober, modifications by Jess Grembi
+# Authors: Peter Treit and Florian Schober Rosenberger, modifications by Jess Grembi
 #######################################
 
 rm(list=ls())
@@ -13,7 +13,12 @@ rm(list=ls())
 source(paste0(here::here(), "/0-config.R"))
 
 ### -- Data files
-
+##############################################################################
+#--------------------------------------------------------------------
+# NOTE: proteinGroups.tsv is included in the repo as a .zip file (proteinGroups.tsv.zip) 
+#         to save space. It will need to be unzipped before this code can run!
+#--------------------------------------------------------------------
+##############################################################################
 d <- read_tsv(paste0(data_dir,"proteinGroups.tsv")) %>%
   mutate(`Gene names` = ifelse(`Protein IDs` == "A0A3S8TMF2;A0A0G2JR65;A0A0G2JM87", "MUC2", `Gene names`))
 
