@@ -7,7 +7,9 @@ This repository includes data and replication files to reproduce the analyses in
 Shalon, D*, Culver, RN*, Grembi, JA*, Folz, J*, Treit, PV, Shi, H, Rosenberger, FA, Dethlefsen, L, Meng, X, Yaffe, E, Aranda-Diaz, A, Geyer, PE, Mueller-Reif, JB, Spencer, S, Patterson, AD, Triadafilopoulos, G, Holmes, SP, Mann, M, Fiehn, O, Relman, DA, Huang, KC. Profiling the human intestinal environment under physiologic conditions.  _Nature_. (2023)
 
 
-The `data` directory includes all datasets needed to reproduce the analysis plus a data dictionary (`0-data-dictionary-samples.xlsx`), which decribes the metadata variables present in the files `sample_data.RDS`, `phyloseq_alphaDiv.rds`, and `phyloseq_bilesalt.rds`. The latter two are phyloseq objects with data in each of the object slots (sample data, ASV table, taxonomy table, and phylogenetic tree). The configuration file `0-config.R` lists all R packages that need to be installed prior to running the code. 
+The configuration file `0-config.R` lists all R packages that need to be installed prior to running the code. 
+
+The `data` directory includes all datasets needed to reproduce the analysis plus a data dictionary (`0-data-dictionary-samples.xlsx`), which decribes the metadata variables present in the files `sample_data.RDS`, `phyloseq_alphaDiv.rds`, and `phyloseq_bilesalt.rds`. The latter two are phyloseq objects with data in each of the object slots (sample data, ASV table, taxonomy table, and phylogenetic tree). 
 
 Raw data is available from the following public repositories:
  - Sequencing data (both 16S and shotgun metagenomic): NCBI Sequencing Read Archive under [BioProject PRJNA822660](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA822660)
