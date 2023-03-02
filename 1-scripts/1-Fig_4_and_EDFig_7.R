@@ -710,7 +710,7 @@ protein_similarity <- pearson_df %>%
                             aes(x = dist, y = 1-value, color = location_1)) + 
   geom_density2d(bins = 60, alpha = 0.5) + 
   scale_color_manual(values = CapAndStoolColors, guide = "none") + 
-  labs(x = "Microbiota Canberra distance between samples", y = "1-[Pearson correlation between host proteoms]"))
+  labs(x = "Microbiota Canberra distance between samples", y = "1-[Pearson correlation between host proteomes]"))
 
 ggsave(paste0(fig_dir_main_subpanels, "Fig_4f_subpanel_pearson_correlation_by_Canberra_dist.pdf"), plot = main_4f)
 
@@ -723,9 +723,7 @@ plot_grid(plot_grid(main_4a, main_4b, labels = c("a", "b"), label_size = 16, nco
           plot_grid(main_4c, main_4d, labels = c("c", "d"), label_size = 16, ncol = 2), 
           plot_grid(main_4e, main_4f, labels = c("e", "f"), label_size = 16, ncol = 2), nrow = 3)
 
-ggsave(paste0(fig_dir, "Figure_4.pdf"), width = 10, height = 14)
-
-
+ggsave(paste0(fig_dir, "Figure_4.pdf"), width = 10, height = 16)
 
 
 #----------------------------
